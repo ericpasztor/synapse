@@ -18,9 +18,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "47cd9f7b-5388-4347-b4e9-e117aba1f6c1",
-				"spark.synapse.library.python.env": "name: stats2\r\nchannels:\r\n- defaults\r\ndependencies:\r\n- bokeh\r\n- numpy\r\n- pip:\r\n  - matplotlib\r\n  - koalas==1.7.0\r\n  - yfinance",
-				"spark.synapse.library.python.env.name": "environment.yml"
+				"spark.autotune.trackingId": "b0a9ca8d-9be6-4256-ad83-73bda94ce83c"
 			}
 		},
 		"metadata": {
@@ -244,6 +242,24 @@
 					"plt.show()"
 				],
 				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"conda install anaconda"
+				],
+				"execution_count": 4
 			}
 		]
 	}
