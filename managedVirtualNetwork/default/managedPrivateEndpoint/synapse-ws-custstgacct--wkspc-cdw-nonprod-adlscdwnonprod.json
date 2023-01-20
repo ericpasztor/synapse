@@ -1,0 +1,10 @@
+{
+	"name": "synapse-ws-custstgacct--wkspc-cdw-nonprod-adlscdwnonprod",
+	"properties": {
+		"privateLinkResourceId": "/subscriptions/b3d87898-3bc9-4864-ba33-06c31dea9d94/resourceGroups/rg-cdw-nonprod/providers/Microsoft.Storage/storageAccounts/adlscdwnonprod",
+		"groupId": "dfs",
+		"fqdns": [
+			"adlscdwnonprod.dfs.core.windows.net"
+		]
+	}
+}
