@@ -18,7 +18,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "b0a9ca8d-9be6-4256-ad83-73bda94ce83c"
+				"spark.autotune.trackingId": "5901e776-2641-4c4e-8a99-54625a9ec8a8"
 			}
 		},
 		"metadata": {
@@ -259,7 +259,7 @@
 				"source": [
 					"conda install anaconda"
 				],
-				"execution_count": 4
+				"execution_count": 6
 			}
 		]
 	}
