@@ -4,7 +4,7 @@
 		"nbformat": 4,
 		"nbformat_minor": 2,
 		"bigDataPool": {
-			"referenceName": "sparknonprod",
+			"referenceName": "sparkcdwnonprod",
 			"type": "BigDataPoolReference"
 		},
 		"sessionProperties": {
@@ -18,7 +18,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "5901e776-2641-4c4e-8a99-54625a9ec8a8"
+				"spark.autotune.trackingId": "e628609f-d55b-4698-a15e-d4a864b96710"
 			}
 		},
 		"metadata": {
@@ -32,10 +32,10 @@
 				"name": "python"
 			},
 			"a365ComputeOptions": {
-				"id": "/subscriptions/b3d87898-3bc9-4864-ba33-06c31dea9d94/resourceGroups/rg-cdw-nonprod/providers/Microsoft.Synapse/workspaces/wkspc-cdw-nonprod/bigDataPools/sparknonprod",
-				"name": "sparknonprod",
+				"id": "/subscriptions/b3d87898-3bc9-4864-ba33-06c31dea9d94/resourceGroups/rg-cdw-nonprod/providers/Microsoft.Synapse/workspaces/wkspc-cdw-nonprod/bigDataPools/sparkcdwnonprod",
+				"name": "sparkcdwnonprod",
 				"type": "Spark",
-				"endpoint": "https://wkspc-cdw-nonprod.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/sparknonprod",
+				"endpoint": "https://wkspc-cdw-nonprod.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/sparkcdwnonprod",
 				"auth": {
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
@@ -257,9 +257,27 @@
 					}
 				},
 				"source": [
-					"conda install anaconda"
+					"sudo conda "
 				],
-				"execution_count": 6
+				"execution_count": 5
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"conda update --all"
+				],
+				"execution_count": 1
 			}
 		]
 	}
