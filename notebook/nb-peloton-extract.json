@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "62a2196a-4855-40f1-a520-b6501a102969"
+				"spark.autotune.trackingId": "10b7755f-fc0e-43c1-8f29-25a0109396eb"
 			}
 		},
 		"metadata": {
@@ -125,6 +125,50 @@
 					"          print(i)"
 				],
 				"execution_count": 40
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"spark.conf.set(\"spark.storage.synapse.akv\", \"kv-cdw-nonprod\")  \r\n",
+					"spark.conf.set(\"spark.storage.akv.secret\", \"un-peloton-api\")  "
+				],
+				"execution_count": 7
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"import sys\r\n",
+					"from pyspark.sql import SparkSession\r\n",
+					"\r\n",
+					"sc = SparkSession.builder.getOrCreate()\r\n",
+					"token_library = sc._jvm.com.microsoft.azure.synapse.tokenlibrary.TokenLibrary\r\n",
+					"\r\n",
+					"connection_string = token_library.GetSecret(\"kv-cdw-nonprod\", \"un-peloton-api\", \"lsakvcdwnonprod\")\r\n",
+					"print(connection_string)"
+				],
+				"execution_count": 8
 			}
 		]
 	}
