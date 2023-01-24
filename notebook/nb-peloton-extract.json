@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "7b76fa05-b485-4ec6-943d-cee7d4ee9817"
+				"spark.autotune.trackingId": "62a2196a-4855-40f1-a520-b6501a102969"
 			}
 		},
 		"metadata": {
@@ -66,6 +66,7 @@
 					"from azure.keyvault.secrets import SecretClient\r\n",
 					"from azure.identity import DefaultAzureCredential\r\n",
 					"import requests\r\n",
+					"import json\r\n",
 					"\r\n",
 					"kvName = 'kv-cdw-nonprod'\r\n",
 					"kvUri = f'https://{kvName}.vault.azure.net'\r\n",
@@ -81,7 +82,7 @@
 					"apiSession.post('https://api.onepeloton.com/auth/login', json=srcCredentials)\r\n",
 					"\r\n",
 					"apiResponse = apiSession.get('https://api.onepeloton.com/api/me')\r\n",
-					"print(apiResponse.text)"
+					"print(json.loads(apiResponse))"
 				],
 				"execution_count": 2
 			},
