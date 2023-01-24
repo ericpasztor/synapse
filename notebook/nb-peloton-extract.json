@@ -18,7 +18,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "dd699eed-6ccc-43ac-a18d-a3b519f8338a"
+				"spark.autotune.trackingId": "5eaa560c-9037-462b-9045-20c8fcaa1928"
 			}
 		},
 		"metadata": {
@@ -169,7 +169,7 @@
 					"connection_string = token_library.GetSecret(\"kv-cdw-nonprod\", \"un-peloton-api\", \"lsakvcdwnonprod\")\r\n",
 					"print(connection_string)"
 				],
-				"execution_count": 8
+				"execution_count": 1
 			}
 		]
 	}
