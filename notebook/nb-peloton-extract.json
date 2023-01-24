@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "506f34eb-3b87-41d2-bccb-d9d87b0f401b"
+				"spark.autotune.trackingId": "7b76fa05-b485-4ec6-943d-cee7d4ee9817"
 			}
 		},
 		"metadata": {
@@ -73,15 +73,15 @@
 					"credential = DefaultAzureCredential(exclude_shared_token_cache_credential=True)\r\n",
 					"client = SecretClient(vault_url=kvUri, credential=credential)\r\n",
 					"\r\n",
-					"unPelotonApi = client.get_secret(\"un-peloton-api\").value\r\n",
-					"pwPelotonApi = client.get_secret(\"pw-peloton-api\").value\r\n",
-					"s = requests.Session()\r\n",
+					"unSrcApi = client.get_secret(\"un-peloton-api\").value\r\n",
+					"pwSrcApi = client.get_secret(\"pw-peloton-api\").value\r\n",
+					"srcSession = requests.Session()\r\n",
 					"\r\n",
-					"payload = {'username_or_email': unPelotonApi, 'password': pwPelotonApi}\r\n",
-					"s.post('https://api.onepeloton.com/auth/login', json=payload)\r\n",
+					"apiCredentials = {'username_or_email': unSrcApi, 'password': pwSrcApi}\r\n",
+					"apiSession.post('https://api.onepeloton.com/auth/login', json=srcCredentials)\r\n",
 					"\r\n",
-					"me = s.get('https://api.onepeloton.com/api/me')\r\n",
-					"print(me.text)"
+					"apiResponse = apiSession.get('https://api.onepeloton.com/api/me')\r\n",
+					"print(apiResponse.text)"
 				],
 				"execution_count": 2
 			},
