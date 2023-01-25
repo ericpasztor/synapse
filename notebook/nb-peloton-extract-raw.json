@@ -1,5 +1,5 @@
 {
-	"name": "nb-peloton-extract",
+	"name": "nb-peloton-extract-raw",
 	"properties": {
 		"nbformat": 4,
 		"nbformat_minor": 2,
@@ -18,7 +18,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "2d8ba34e-9f2c-43b1-9ec1-b5ed5a25237a"
+				"spark.autotune.trackingId": "18e2b74e-f754-4f79-a31e-44dc3fc9707e"
 			}
 		},
 		"metadata": {
@@ -50,12 +50,8 @@
 		},
 		"cells": [
 			{
-				"cell_type": "code",
+				"cell_type": "markdown",
 				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
 					"nteract": {
 						"transient": {
 							"deleting": false
@@ -63,29 +59,21 @@
 					}
 				},
 				"source": [
-					"import os\r\n",
-					"from azure.keyvault.secrets import SecretClient\r\n",
-					"from azure.identity import DefaultAzureCredential\r\n",
-					"import requests\r\n",
-					"import json\r\n",
-					"\r\n",
-					"kvName = 'kv-cdw-nonprod'\r\n",
-					"kvUri = f'https://{kvName}.vault.azure.net'\r\n",
-					"\r\n",
-					"credential = DefaultAzureCredential(exclude_shared_token_cache_credential=True)\r\n",
-					"client = SecretClient(vault_url=kvUri, credential=credential)\r\n",
-					"\r\n",
-					"unSrcApi = client.get_secret(\"un-peloton-api\").value\r\n",
-					"pwSrcApi = client.get_secret(\"pw-peloton-api\").value\r\n",
-					"srcSession = requests.Session()\r\n",
-					"\r\n",
-					"apiCredentials = {'username_or_email': unSrcApi, 'password': pwSrcApi}\r\n",
-					"apiSession.post('https://api.onepeloton.com/auth/login', json=srcCredentials)\r\n",
-					"\r\n",
-					"apiResponse = apiSession.get('https://api.onepeloton.com/api/me')\r\n",
-					"print(json.loads(apiResponse))"
-				],
-				"execution_count": 2
+					"# **Extracting Data from [REST API](https://github.com/geudrik/peloton-client-library/blob/master/API_DOCS.md)**"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Connect to API"
+				]
 			},
 			{
 				"cell_type": "code",
@@ -101,12 +89,95 @@
 					}
 				},
 				"source": [
-					"params = {'session_id': '113267f50cbd43adaa092b0dcaec3272', 'userId': 'be3b20e8abec48c690be7a1ab1abb9de'}\r\n",
+					"#Import Python packages supporting REST API processing \r\n",
+					"import requests\r\n",
+					"import json\r\n",
+					"\r\n",
+					"#Define Azure Linked Services and Source Parameters\r\n",
+					"kvName = 'kv-cdw-nonprod'\r\n",
+					"lsKvName = 'lsakvcdwnonprod'\r\n",
+					"srcName = 'peloton'\r\n",
+					"baseUrl = 'https://api.onepeloton.com'\r\n",
+					"\r\n",
+					"#Get Source Credentials from Key Vault\r\n",
+					"unSrcApi = mssparkutils.credentials.getSecret(kvName,f\"un-{srcName}-api\", lsKvName)\r\n",
+					"pwSrcApi = mssparkutils.credentials.getSecret(kvName,f\"pw-{srcName}-api\", lsKvName)\r\n",
+					"\r\n",
+					"#Create API Session and Authenticate\r\n",
+					"apiSession = requests.Session()\r\n",
+					"apiCredentials = {'username_or_email': unSrcApi, 'password': pwSrcApi}\r\n",
+					"userSession = apiSession.post(f'{baseUrl}/auth/login', json=apiCredentials)\r\n",
+					"\r\n",
+					"#Read API Session Response\r\n",
+					"loginResponse = json.loads(userSession.text)\r\n",
+					"sessionId = loginResponse[\"session_id\"]\r\n",
+					"userId = loginResponse[\"user_id\"]"
+				],
+				"execution_count": 6
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Extract Data from Endpoints to Raw Zone"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### Get Anonymous Endpoint Data"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"endpoints = ['workouts', '']\r\n",
+					"\r\n",
+					"https://api.onepeloton.com/api/me\r\n",
+					"\r\n",
+					"userProfile = apiSession.get('f{baseUrl}/auth/login')\r\n",
 					"\r\n",
 					"workouts = w.get('https://api.onepeloton.com/api/user/be3b20e8abec48c690be7a1ab1abb9de/workouts')\r\n",
 					"print(workouts.text)"
 				],
-				"execution_count": 37
+				"execution_count": 45
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### Get Privileged Endpoint Data"
+				]
 			},
 			{
 				"cell_type": "code",
@@ -141,75 +212,13 @@
 					}
 				},
 				"source": [
-					"spark.conf.set(\"spark.storage.synapse.akv\", \"kv-cdw-nonprod\")  \r\n",
-					"spark.conf.set(\"spark.storage.akv.secret\", \"un-peloton-api\")  "
+					"#Get User ID to pass into other calls\r\n",
+					"profileData = apiSession.get(f'{baseUrl}/api/me')\r\n",
+					"profileResponse = json.loads(profileData.text)\r\n",
+					"print(profileResponse)\r\n",
+					""
 				],
-				"execution_count": 7
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"import sys\r\n",
-					"from pyspark.sql import SparkSession\r\n",
-					"\r\n",
-					"sc = SparkSession.builder.getOrCreate()\r\n",
-					"token_library = sc._jvm.com.microsoft.azure.synapse.tokenlibrary.TokenLibrary\r\n",
-					"\r\n",
-					"connection_string = token_library.GetSecret(\"kv-cdw-nonprod\", \"un-peloton-api\", \"lsakvcdwnonprod\")\r\n",
-					"print(connection_string)"
-				],
-				"execution_count": 1
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"mssparkutils.credentials.getSecret(\"kv-cdw-nonprod\",\"un-peloton-api\")"
-				],
-				"execution_count": 7
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"from pyspark.sql import SparkSession\r\n",
-					"sc = SparkSession.builder.getOrCreate()\r\n",
-					"token_library = sc._jvm.com.microsoft.azure.synapse.tokenlibrary.TokenLibrary\r\n",
-					"\r\n",
-					"connection_string = token_library.GetSecret(\"kv-cdw-nonprod\", \"un-peloton-api\")"
-				],
-				"execution_count": 2
+				"execution_count": 9
 			}
 		]
 	}
