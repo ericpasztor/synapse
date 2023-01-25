@@ -1,5 +1,5 @@
 {
-	"name": "nb-peloton-extract-raw",
+	"name": "nb-api-extract-raw",
 	"properties": {
 		"folder": {
 			"name": "Projects"
@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "de349923-8fe4-4a1f-b734-e9c6124a0107"
+				"spark.autotune.trackingId": "9d2aebe9-4ee6-4141-85b8-8ca3ba122657"
 			}
 		},
 		"metadata": {
