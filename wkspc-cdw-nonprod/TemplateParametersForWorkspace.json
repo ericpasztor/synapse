@@ -8,6 +8,9 @@
 		"wkspc-cdw-nonprod-WorkspaceDefaultSqlServer_connectionString": {
 			"value": "Integrated Security=False;Encrypt=True;Connection Timeout=30;Data Source=tcp:wkspc-cdw-nonprod.sql.azuresynapse.net,1433;Initial Catalog=@{linkedService().DBName}"
 		},
+		"lsakvcdwnonprod_properties_typeProperties_baseUrl": {
+			"value": "https://kv-cdw-nonprod.vault.azure.net/"
+		},
 		"wkspc-cdw-nonprod-WorkspaceDefaultStorage_properties_typeProperties_url": {
 			"value": "https://adlscdwnonprod.dfs.core.windows.net"
 		}
