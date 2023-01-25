@@ -1,6 +1,9 @@
 {
 	"name": "nb-peloton-extract-raw",
 	"properties": {
+		"folder": {
+			"name": "Projects"
+		},
 		"nbformat": 4,
 		"nbformat_minor": 2,
 		"bigDataPool": {
@@ -18,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "18e2b74e-f754-4f79-a31e-44dc3fc9707e"
+				"spark.autotune.trackingId": "de349923-8fe4-4a1f-b734-e9c6124a0107"
 			}
 		},
 		"metadata": {
