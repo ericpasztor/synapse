@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "6697f026-6837-4e63-b0ed-79be1606920c"
+				"spark.autotune.trackingId": "b13d1edb-43cb-44ec-bc6e-14d32c4aed1d"
 			}
 		},
 		"metadata": {
@@ -59,10 +59,10 @@
 					"import json\r\n",
 					"\r\n",
 					"kvName = 'kv-de-nonprod'\r\n",
-					"lsKvName = 'lsakvdenonprod'\r\n",
+					"lsKvName = 'lsadkvdenonprod'\r\n",
 					"\r\n",
 					"#Get Source Credentials from Key Vault\r\n",
-					"oaiKey = mssparkutils.credentials.getSecret(kvName,\"kv-secret-oai-key\", lsKvName)\r\n",
+					"oaiKey = mssparkutils.credentials.getSecret(kvName,\"kv-secret-oai-svc-key\", lsKvName)\r\n",
 					"\r\n",
 					"api_key = oaiKey\r\n",
 					"base_url = \"https://oai-svc-nonprod.openai.azure.com/\"\r\n",
@@ -87,7 +87,7 @@
 					"\r\n",
 					"print(formatted_response)"
 				],
-				"execution_count": 4
+				"execution_count": 14
 			},
 			{
 				"cell_type": "code",
