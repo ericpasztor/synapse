@@ -16,7 +16,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "026fd8cb-8621-4d35-a323-e44933cffee1"
+				"spark.autotune.trackingId": "5d3eb067-1ec1-40aa-80c2-d2161c2d6c60"
 			}
 		},
 		"metadata": {
@@ -35,7 +35,38 @@
 			{
 				"cell_type": "code",
 				"source": [
-					""
+					"import os\r\n",
+					"import requests\r\n",
+					"import json\r\n",
+					"\r\n",
+					"kvName = 'kv-de-nonprod'\r\n",
+					"lsKvName = 'lsakvdenonprod'\r\n",
+					"\r\n",
+					"#Get Source Credentials from Key Vault\r\n",
+					"unSrcApi = mssparkutils.credentials.getSecret(kvName,f\"un-{srcName}-api\", lsKvName)\r\n",
+					"\r\n",
+					"api_key = \"d10250e002004a2d90fc5da4f3ed48e1\"\r\n",
+					"base_url = \"https://oai-svc-nonprod.openai.azure.com/\"\r\n",
+					"deployment_name =\"text-davinci-002\"\r\n",
+					"\r\n",
+					"url = base_url + \"/openai/deployments/\" + deployment_name + \"/completions?api-version=2022-12-01\"\r\n",
+					"prompt = \"Once upon a time\"\r\n",
+					"payload = {        \r\n",
+					"    \"prompt\":prompt\r\n",
+					"    }\r\n",
+					"\r\n",
+					"r = requests.post(url, \r\n",
+					"      headers={\r\n",
+					"        \"api-key\": api_key,\r\n",
+					"        \"Content-Type\": \"application/json\"\r\n",
+					"      },\r\n",
+					"      json = payload\r\n",
+					"    )\r\n",
+					"\r\n",
+					"response = json.loads(r.text)\r\n",
+					"formatted_response = json.dumps(response, indent=4)\r\n",
+					"\r\n",
+					"print(formatted_response)"
 				],
 				"execution_count": null
 			}
