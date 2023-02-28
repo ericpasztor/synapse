@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "c2363ab4-1d51-4588-9860-27083ee6c075"
+				"spark.autotune.trackingId": "2763c6e9-ab33-426d-8d26-f125a4010568"
 			}
 		},
 		"metadata": {
@@ -61,7 +61,7 @@
 					"kvName = 'kv-de-nonprod'\r\n",
 					"lsKvName = 'lsakvdenonprod'\r\n",
 					"\r\n",
-					"Get Source Credentials from Key Vault\r\n",
+					"#Get Source Credentials from Key Vault\r\n",
 					"oaiKey = mssparkutils.credentials.getSecret(kvName,\"kv-secret-oai-key\", lsKvName)\r\n",
 					"\r\n",
 					"api_key = oaiKey\r\n",
@@ -87,7 +87,48 @@
 					"\r\n",
 					"print(formatted_response)"
 				],
-				"execution_count": 2
+				"execution_count": 3
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"import os\r\n",
+					"import requests\r\n",
+					"import json\r\n",
+					"import openai\r\n",
+					"\r\n",
+					"kvName = 'kv-de-nonprod'\r\n",
+					"lsKvName = 'lsakvdenonprod'\r\n",
+					"\r\n",
+					"#Get Source Credentials from Key Vault\r\n",
+					"oaiKey = mssparkutils.credentials.getSecret(kvName,\"kv-secret-oai-key\", lsKvName)\r\n",
+					"\r\n",
+					"openai.api_key = oaiKey\r\n",
+					"openai.api_base =  \"https://oai-svc-nonprod.openai.azure.com/\" # your endpoint should look like the following https://YOUR_RESOURCE_NAME.openai.azure.com/\r\n",
+					"openai.api_type = 'azure'\r\n",
+					"openai.api_version = '2022-12-01' # this may change in the future\r\n",
+					"\r\n",
+					"deployment_name='text-davinci-002' #This will correspond to the custom name you chose for your deployment when you deployed a model. \r\n",
+					"\r\n",
+					"# Send a completion call to generate an answer\r\n",
+					"print('Sending a test completion job')\r\n",
+					"start_phrase = 'Write a tagline for an ice cream shop. '\r\n",
+					"response = openai.Completion.create(engine=deployment_name, prompt=start_phrase, max_tokens=10)\r\n",
+					"text = response['choices'][0]['text'].replace('\\n', '').replace(' .', '.').strip()\r\n",
+					"print(start_phrase+text)"
+				],
+				"execution_count": null
 			}
 		]
 	}
