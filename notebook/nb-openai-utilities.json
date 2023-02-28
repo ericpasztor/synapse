@@ -16,7 +16,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "5d3eb067-1ec1-40aa-80c2-d2161c2d6c60"
+				"spark.autotune.trackingId": "efad116e-3f96-4f4e-8ecd-29bfda52f365"
 			}
 		},
 		"metadata": {
@@ -43,7 +43,7 @@
 					"lsKvName = 'lsakvdenonprod'\r\n",
 					"\r\n",
 					"#Get Source Credentials from Key Vault\r\n",
-					"unSrcApi = mssparkutils.credentials.getSecret(kvName,f\"un-{srcName}-api\", lsKvName)\r\n",
+					"#unSrcApi = mssparkutils.credentials.getSecret(kvName,\"\", lsKvName)\r\n",
 					"\r\n",
 					"api_key = \"d10250e002004a2d90fc5da4f3ed48e1\"\r\n",
 					"base_url = \"https://oai-svc-nonprod.openai.azure.com/\"\r\n",
