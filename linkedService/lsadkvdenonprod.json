@@ -1,0 +1,10 @@
+{
+	"name": "lsadkvdenonprod",
+	"properties": {
+		"annotations": [],
+		"type": "AzureKeyVault",
+		"typeProperties": {
+			"baseUrl": "https://kv-de-nonprod.vault.azure.net/"
+		}
+	}
+}
