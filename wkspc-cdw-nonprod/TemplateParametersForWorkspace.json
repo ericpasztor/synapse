@@ -13,6 +13,9 @@
 		},
 		"wkspc-cdw-nonprod-WorkspaceDefaultStorage_properties_typeProperties_url": {
 			"value": "https://adlscdwnonprod.dfs.core.windows.net"
+		},
+		"lsadkvdenonprod_properties_typeProperties_baseUrl": {
+			"value": "https://kv-de-nonprod.vault.azure.net/"
 		}
 	}
 }

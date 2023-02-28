@@ -19,30 +19,16 @@
 		"wkspc-cdw-nonprod-WorkspaceDefaultStorage_properties_typeProperties_url": {
 			"type": "string",
 			"defaultValue": "https://adlscdwnonprod.dfs.core.windows.net"
+		},
+		"lsadkvdenonprod_properties_typeProperties_baseUrl": {
+			"type": "string",
+			"defaultValue": "https://kv-de-nonprod.vault.azure.net/"
 		}
 	},
 	"variables": {
 		"workspaceId": "[concat('Microsoft.Synapse/workspaces/', parameters('workspaceName'))]"
 	},
 	"resources": [
-		{
-			"name": "[concat(parameters('workspaceName'), '/sparkcdwnonprod')]",
-			"type": "Microsoft.Synapse/workspaces/bigDataPools",
-			"apiVersion": "2019-06-01-preview",
-			"properties": {
-				"annotations": []
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('workspaceName'), '/sparknonprod')]",
-			"type": "Microsoft.Synapse/workspaces/bigDataPools",
-			"apiVersion": "2019-06-01-preview",
-			"properties": {
-				"annotations": []
-			},
-			"dependsOn": []
-		},
 		{
 			"name": "[concat(parameters('workspaceName'), '/lsakvcdwnonprod')]",
 			"type": "Microsoft.Synapse/workspaces/linkedServices",
@@ -135,10 +121,1791 @@
 			"dependsOn": []
 		},
 		{
-			"name": "[concat(parameters('workspaceName'), '/nb-peloton-extract')]",
+			"name": "[concat(parameters('workspaceName'), '/Boston house price prediction')]",
 			"type": "Microsoft.Synapse/workspaces/notebooks",
 			"apiVersion": "2019-06-01-preview",
 			"properties": {
+				"folder": {
+					"name": "Samples"
+				},
+				"nbformat": 4,
+				"nbformat_minor": 2,
+				"sessionProperties": {
+					"driverMemory": "28g",
+					"driverCores": 4,
+					"executorMemory": "28g",
+					"executorCores": 4,
+					"numExecutors": 2,
+					"conf": {
+						"spark.dynamicAllocation.enabled": "false",
+						"spark.dynamicAllocation.minExecutors": "2",
+						"spark.dynamicAllocation.maxExecutors": "2",
+						"spark.autotune.trackingId": "ee547daf-5c70-4840-9f05-097dd597346a"
+					}
+				},
+				"metadata": {
+					"saveOutput": true,
+					"enableDebugMode": false,
+					"kernelspec": {
+						"name": "synapse_pyspark",
+						"display_name": "Synapse PySpark"
+					},
+					"language_info": {
+						"name": "python"
+					},
+					"sessionKeepAliveTimeout": 30
+				},
+				"cells": [
+					{
+						"cell_type": "markdown",
+						"source": [
+							"# Boston house price prediction with Vowpal Wabbit, LightGBM and Spark MLlib\n",
+							"\n",
+							"This notebook shows how to build simple regression models by using \n",
+							"[Vowpal Wabbit (VW)](https://github.com/VowpalWabbit/vowpal_wabbit) and \n",
+							"[LightGBM](https://github.com/microsoft/LightGBM) with MMLSpark.\n",
+							" We also compare the results with \n",
+							" [Spark MLlib Linear Regression](https://spark.apache.org/docs/latest/ml-classification-regression.html#linear-regression)."
+						]
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"import math\n",
+							"from matplotlib.colors import ListedColormap, Normalize\n",
+							"from matplotlib.cm import get_cmap\n",
+							"import matplotlib.pyplot as plt\n",
+							"from mmlspark.train import ComputeModelStatistics\n",
+							"from mmlspark.vw import VowpalWabbitRegressor, VowpalWabbitFeaturizer\n",
+							"from mmlspark.lightgbm import LightGBMRegressor\n",
+							"import numpy as np\n",
+							"import pandas as pd\n",
+							"from pyspark.ml.feature import VectorAssembler\n",
+							"from pyspark.ml.regression import LinearRegression\n",
+							"from sklearn.datasets import load_boston"
+						],
+						"outputs": [],
+						"execution_count": 1
+					},
+					{
+						"cell_type": "markdown",
+						"source": [
+							"## Prepare Dataset\n",
+							"We use [*Boston house price* dataset](https://scikit-learn.org/stable/modules/generated/sklearn.datasets.load_boston.html) \n",
+							". \n",
+							"The data was collected in 1978 from Boston area and consists of 506 entries with 14 features including the value of homes. \n",
+							"We use `sklearn.datasets` module to download it easily, then split the set into training and testing by 75/25."
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"collapsed": false
+						},
+						"source": [
+							"boston = load_boston()\n",
+							"\n",
+							"feature_cols = ['f' + str(i) for i in range(boston.data.shape[1])]\n",
+							"header = ['target'] + feature_cols\n",
+							"df = spark.createDataFrame(\n",
+							"    pd.DataFrame(data=np.column_stack((boston.target, boston.data)), columns=header)\n",
+							").repartition(1)\n",
+							"print(\"Dataframe has {} rows\".format(df.count()))\n",
+							"display(df.limit(10).toPandas())"
+						],
+						"outputs": [],
+						"execution_count": 2
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"train_data, test_data = df.randomSplit([0.75, 0.25], seed=42)\n",
+							"train_data.cache()\n",
+							"test_data.cache()"
+						],
+						"outputs": [],
+						"execution_count": 3
+					},
+					{
+						"cell_type": "markdown",
+						"source": [
+							"Following is the summary of the training set."
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"collapsed": false
+						},
+						"source": [
+							"display(train_data.summary().toPandas())"
+						],
+						"outputs": [],
+						"execution_count": 4
+					},
+					{
+						"cell_type": "markdown",
+						"source": [
+							"Plot feature distributions over different target values (house prices in our case)."
+						]
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"features = train_data.columns[1:]\n",
+							"values = train_data.drop('target').toPandas()\n",
+							"ncols = 5\n",
+							"nrows = math.ceil(len(features) / ncols)\n",
+							"\n",
+							"yy = [r['target'] for r in train_data.select('target').collect()]\n",
+							"\n",
+							"f, axes = plt.subplots(nrows, ncols, sharey=True, figsize=(30,10))\n",
+							"f.tight_layout()\n",
+							"\n",
+							"for irow in range(nrows):\n",
+							"    axes[irow][0].set_ylabel('target')\n",
+							"    for icol in range(ncols):\n",
+							"        try:\n",
+							"            feat = features[irow*ncols + icol]\n",
+							"            xx = values[feat]\n",
+							"\n",
+							"            axes[irow][icol].scatter(xx, yy, s=10, alpha=0.25)\n",
+							"            axes[irow][icol].set_xlabel(feat)\n",
+							"            axes[irow][icol].get_yaxis().set_ticks([])\n",
+							"        except IndexError:\n",
+							"            f.delaxes(axes[irow][icol])"
+						],
+						"outputs": [],
+						"execution_count": 5
+					},
+					{
+						"cell_type": "markdown",
+						"source": [
+							"## Baseline - Spark MLlib Linear Regressor\n",
+							"\n",
+							"First, we set a baseline performance by using Linear Regressor in Spark MLlib."
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"collapsed": false
+						},
+						"source": [
+							"featurizer = VectorAssembler(\n",
+							"    inputCols=feature_cols,\n",
+							"    outputCol='features'\n",
+							")\n",
+							"lr_train_data = featurizer.transform(train_data)['target', 'features']\n",
+							"lr_test_data = featurizer.transform(test_data)['target', 'features']\n",
+							"display(lr_train_data.limit(10).toPandas())"
+						],
+						"outputs": [],
+						"execution_count": 6
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"collapsed": false
+						},
+						"source": [
+							"# By default, `maxIter` is 100. Other params you may want to change include: `regParam`, `elasticNetParam`, etc.\n",
+							"lr = LinearRegression(\n",
+							"    labelCol='target',\n",
+							")\n",
+							"\n",
+							"lr_model = lr.fit(lr_train_data)\n",
+							"lr_predictions = lr_model.transform(lr_test_data)\n",
+							"\n",
+							"display(lr_predictions.limit(10).toPandas())"
+						],
+						"outputs": [],
+						"execution_count": 7
+					},
+					{
+						"cell_type": "markdown",
+						"source": [
+							"We evaluate the prediction result by using `mmlspark.train.ComputeModelStatistics` which returns four metrics:\n",
+							"* [MSE (Mean Squared Error)](https://en.wikipedia.org/wiki/Mean_squared_error)\n",
+							"* [RMSE (Root Mean Squared Error)](https://en.wikipedia.org/wiki/Root-mean-square_deviation) = sqrt(MSE)\n",
+							"* [R quared](https://en.wikipedia.org/wiki/Coefficient_of_determination)\n",
+							"* [MAE (Mean Absolute Error)](https://en.wikipedia.org/wiki/Mean_absolute_error)"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"collapsed": false
+						},
+						"source": [
+							"metrics = ComputeModelStatistics(\n",
+							"    evaluationMetric='regression',\n",
+							"    labelCol='target',\n",
+							"    scoresCol='prediction'\n",
+							").transform(lr_predictions)\n",
+							"\n",
+							"results = metrics.toPandas()\n",
+							"results.insert(0, 'model', ['Spark MLlib - Linear Regression'])\n",
+							"display(results)"
+						],
+						"outputs": [],
+						"execution_count": 8
+					},
+					{
+						"cell_type": "markdown",
+						"source": [
+							"## Vowpal Wabbit"
+						]
+					},
+					{
+						"cell_type": "markdown",
+						"source": [
+							"Perform VW-style feature hashing. Many types (numbers, string, bool, map of string to (number, string)) are supported."
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"collapsed": false
+						},
+						"source": [
+							"vw_featurizer = VowpalWabbitFeaturizer(\n",
+							"    inputCols=feature_cols,\n",
+							"    outputCol='features',\n",
+							")\n",
+							"vw_train_data = vw_featurizer.transform(train_data)['target', 'features']\n",
+							"vw_test_data = vw_featurizer.transform(test_data)['target', 'features']\n",
+							"display(vw_train_data.limit(10).toPandas())"
+						],
+						"outputs": [],
+						"execution_count": 9
+					},
+					{
+						"cell_type": "markdown",
+						"source": [
+							"See [VW wiki](https://github.com/vowpalWabbit/vowpal_wabbit/wiki/Command-Line-Arguments) for command line arguments."
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"collapsed": false
+						},
+						"source": [
+							"# Use the same number of iterations as Spark MLlib's Linear Regression (=100)\n",
+							"args = \"--holdout_off --loss_function quantile -l 7 -q :: --power_t 0.3\"\n",
+							"vwr = VowpalWabbitRegressor(\n",
+							"    labelCol='target',\n",
+							"    args=args,\n",
+							"    numPasses=100,\n",
+							")\n",
+							"\n",
+							"# To reduce number of partitions (which will effect performance), use `vw_train_data.repartition(1)`\n",
+							"vw_train_data_2 = vw_train_data.repartition(1).cache()\n",
+							"print(vw_train_data_2.count())\n",
+							"vw_model = vwr.fit(vw_train_data_2.repartition(1))\n",
+							"vw_predictions = vw_model.transform(vw_test_data)\n",
+							"\n",
+							"display(vw_predictions.limit(10).toPandas())"
+						],
+						"outputs": [],
+						"execution_count": 10
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"collapsed": false
+						},
+						"source": [
+							"metrics = ComputeModelStatistics(\n",
+							"    evaluationMetric='regression',\n",
+							"    labelCol='target',\n",
+							"    scoresCol='prediction'\n",
+							").transform(vw_predictions)\n",
+							"\n",
+							"vw_result = metrics.toPandas()\n",
+							"vw_result.insert(0, 'model', ['Vowpal Wabbit'])\n",
+							"results = results.append(\n",
+							"    vw_result,\n",
+							"    ignore_index=True\n",
+							")\n",
+							"display(results)"
+						],
+						"outputs": [],
+						"execution_count": 11
+					},
+					{
+						"cell_type": "markdown",
+						"source": [
+							"## LightGBM"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"collapsed": false
+						},
+						"source": [
+							"lgr = LightGBMRegressor(\n",
+							"    objective='quantile',\n",
+							"    alpha=0.2,\n",
+							"    learningRate=0.3,\n",
+							"    numLeaves=31,\n",
+							"    labelCol='target',\n",
+							"    numIterations=100,\n",
+							")\n",
+							"\n",
+							"# Using one partition since the training dataset is very small\n",
+							"repartitioned_data = lr_train_data.repartition(1).cache()\n",
+							"print(repartitioned_data.count())\n",
+							"lg_model = lgr.fit(repartitioned_data)\n",
+							"lg_predictions = lg_model.transform(lr_test_data)\n",
+							"\n",
+							"display(lg_predictions.limit(10).toPandas())"
+						],
+						"outputs": [],
+						"execution_count": 12
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"collapsed": false
+						},
+						"source": [
+							"metrics = ComputeModelStatistics(\n",
+							"    evaluationMetric='regression',\n",
+							"    labelCol='target',\n",
+							"    scoresCol='prediction'\n",
+							").transform(lg_predictions)\n",
+							"\n",
+							"lg_result = metrics.toPandas()\n",
+							"lg_result.insert(0, 'model', ['LightGBM'])\n",
+							"results = results.append(\n",
+							"    lg_result,\n",
+							"    ignore_index=True\n",
+							")\n",
+							"display(results)"
+						],
+						"outputs": [],
+						"execution_count": 13
+					},
+					{
+						"cell_type": "markdown",
+						"source": [
+							"Following figure shows the actual-vs.-prediction graphs of the results:\n",
+							"\n",
+							"<img width=\"1102\" alt=\"lr-vw-lg\" src=\"https://user-images.githubusercontent.com/42475935/64071975-4c3e9600-cc54-11e9-8b1f-9a1ee300f445.png\">"
+						]
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"cmap = get_cmap('YlOrRd')\n",
+							"\n",
+							"target = np.array(test_data.select('target').collect()).flatten()\n",
+							"model_preds = [\n",
+							"    (\"Spark MLlib Linear Regression\", lr_predictions),\n",
+							"    (\"Vowpal Wabbit\", vw_predictions),\n",
+							"    (\"LightGBM\", lg_predictions)\n",
+							"]"
+						],
+						"outputs": [],
+						"execution_count": 14
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": true
+						},
+						"source": [
+							"f, axes = plt.subplots(1, len(model_preds), sharey=True, figsize=(18, 6))\r\n",
+							"f.tight_layout()\r\n",
+							"\r\n",
+							"for i, (model_name, preds) in enumerate(model_preds):\r\n",
+							"    preds = np.array(preds.select('prediction').collect()).flatten()\r\n",
+							"    err = np.absolute(preds - target)\r\n",
+							"\r\n",
+							"    norm = Normalize()\r\n",
+							"    clrs = cmap(np.asarray(norm(err)))[:, :-1]\r\n",
+							"    axes[i].scatter(preds, target, s=60, c=clrs, edgecolors='#888888', alpha=0.75)\r\n",
+							"    axes[i].plot((0, 60), (0, 60), linestyle='--', color='#888888')\r\n",
+							"    axes[i].set_xlabel('Predicted values')\r\n",
+							"    if i ==0:\r\n",
+							"        axes[i].set_ylabel('Actual values')\r\n",
+							"    axes[i].set_title(model_name)\r\n",
+							"plt.show()"
+						],
+						"outputs": [],
+						"execution_count": 15
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"## Clean up resources\r\n",
+							"To ensure the Spark instance is shut down, end any connected sessions(notebooks). The pool shuts down when the **idle time** specified in the Apache Spark pool is reached. You can also select **stop session** from the status bar at the upper right of the notebook.\r\n",
+							"\r\n",
+							"![stopsession](https://adsnotebookrelease.blob.core.windows.net/adsnotebookrelease/adsnotebook/image/stopsession.png)"
+						]
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"## Next steps\r\n",
+							"\r\n",
+							"* [Check out Synapse sample notebooks](https://github.com/Azure-Samples/Synapse/tree/main/MachineLearning) \r\n",
+							"* [MMLSpark GitHub Repo](https://github.com/Azure/mmlspark)"
+						]
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/Charting in Synapse Notebook')]",
+			"type": "Microsoft.Synapse/workspaces/notebooks",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"folder": {
+					"name": "Samples"
+				},
+				"nbformat": 4,
+				"nbformat_minor": 2,
+				"sessionProperties": {
+					"driverMemory": "28g",
+					"driverCores": 4,
+					"executorMemory": "28g",
+					"executorCores": 4,
+					"numExecutors": 2,
+					"conf": {
+						"spark.dynamicAllocation.enabled": "false",
+						"spark.dynamicAllocation.minExecutors": "2",
+						"spark.dynamicAllocation.maxExecutors": "2",
+						"spark.autotune.trackingId": "a8e00f55-549c-42f5-be9e-f05972798f9c"
+					}
+				},
+				"metadata": {
+					"saveOutput": true,
+					"enableDebugMode": false,
+					"kernelspec": {
+						"name": "synapse_pyspark",
+						"display_name": "Synapse PySpark"
+					},
+					"language_info": {
+						"name": "python"
+					},
+					"sessionKeepAliveTimeout": 30
+				},
+				"cells": [
+					{
+						"cell_type": "markdown",
+						"source": [
+							"# Charting in Synapse Notebook\n",
+							"\n",
+							"Synapse has common used data visualization packages pre installed, such as **matplotlib**, **bokeh**, **seaborn**, **altair**, **plotly**. This notebook provides examples to do data visualization using charts in Synapse notebook. \n",
+							""
+						]
+					},
+					{
+						"cell_type": "markdown",
+						"source": [
+							"## Matplotlib\n",
+							""
+						]
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"# Line charts\n",
+							"\n",
+							"import matplotlib.pyplot as plt\n",
+							" \n",
+							"x  = [1, 2, 3, 4, 5, 6, 7, 8, 9]\n",
+							"y1 = [1, 3, 5, 3, 1, 3, 5, 3, 1]\n",
+							"y2 = [2, 4, 6, 4, 2, 4, 6, 4, 2]\n",
+							"plt.plot(x, y1, label=\"line L\")\n",
+							"plt.plot(x, y2, label=\"line H\")\n",
+							"plt.plot()\n",
+							"\n",
+							"plt.xlabel(\"x axis\")\n",
+							"plt.ylabel(\"y axis\")\n",
+							"plt.title(\"Line Graph Example\")\n",
+							"plt.legend()\n",
+							"plt.show()"
+						],
+						"outputs": [],
+						"execution_count": 1
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"# Bar chart\n",
+							"\n",
+							"import matplotlib.pyplot as plt\n",
+							"\n",
+							"# Look at index 4 and 6, which demonstrate overlapping cases.\n",
+							"x1 = [1, 3, 4, 5, 6, 7, 9]\n",
+							"y1 = [4, 7, 2, 4, 7, 8, 3]\n",
+							"\n",
+							"x2 = [2, 4, 6, 8, 10]\n",
+							"y2 = [5, 6, 2, 6, 2]\n",
+							"\n",
+							"# Colors: https://matplotlib.org/api/colors_api.html\n",
+							"\n",
+							"plt.bar(x1, y1, label=\"Blue Bar\", color='b')\n",
+							"plt.bar(x2, y2, label=\"Green Bar\", color='g')\n",
+							"plt.plot()\n",
+							"\n",
+							"plt.xlabel(\"bar number\")\n",
+							"plt.ylabel(\"bar height\")\n",
+							"plt.title(\"Bar Chart Example\")\n",
+							"plt.legend()\n",
+							"plt.show()"
+						],
+						"outputs": [],
+						"execution_count": 2
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"# Histogram\n",
+							"\n",
+							"import matplotlib.pyplot as plt\n",
+							"import numpy as np\n",
+							"\n",
+							"# Use numpy to generate a bunch of random data in a bell curve around 5.\n",
+							"n = 5 + np.random.randn(1000)\n",
+							"\n",
+							"m = [m for m in range(len(n))]\n",
+							"plt.bar(m, n)\n",
+							"plt.title(\"Raw Data\")\n",
+							"plt.show()\n",
+							"\n",
+							"plt.hist(n, bins=20)\n",
+							"plt.title(\"Histogram\")\n",
+							"plt.show()\n",
+							"\n",
+							"plt.hist(n, cumulative=True, bins=20)\n",
+							"plt.title(\"Cumulative Histogram\")\n",
+							"plt.show()"
+						],
+						"outputs": [],
+						"execution_count": 3
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"# Scatter chart\n",
+							"\n",
+							"import matplotlib.pyplot as plt\n",
+							"\n",
+							"x1 = [2, 3, 4]\n",
+							"y1 = [5, 5, 5]\n",
+							"\n",
+							"x2 = [1, 2, 3, 4, 5]\n",
+							"y2 = [2, 3, 2, 3, 4]\n",
+							"y3 = [6, 8, 7, 8, 7]\n",
+							"\n",
+							"# Markers: https://matplotlib.org/api/markers_api.html\n",
+							"\n",
+							"plt.scatter(x1, y1)\n",
+							"plt.scatter(x2, y2, marker='v', color='r')\n",
+							"plt.scatter(x2, y3, marker='^', color='m')\n",
+							"plt.title('Scatter Plot Example')\n",
+							"plt.show()\n",
+							""
+						],
+						"outputs": [],
+						"execution_count": 4
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"# Stack plots\n",
+							"\n",
+							"import matplotlib.pyplot as plt\n",
+							"\n",
+							"idxes = [ 1,  2,  3,  4,  5,  6,  7,  8,  9]\n",
+							"arr1  = [23, 40, 28, 43,  8, 44, 43, 18, 17]\n",
+							"arr2  = [17, 30, 22, 14, 17, 17, 29, 22, 30]\n",
+							"arr3  = [15, 31, 18, 22, 18, 19, 13, 32, 39]\n",
+							"\n",
+							"# Adding legend for stack plots is tricky.\n",
+							"plt.plot([], [], color='r', label = 'D 1')\n",
+							"plt.plot([], [], color='g', label = 'D 2')\n",
+							"plt.plot([], [], color='b', label = 'D 3')\n",
+							"\n",
+							"plt.stackplot(idxes, arr1, arr2, arr3, colors= ['r', 'g', 'b'])\n",
+							"plt.title('Stack Plot Example')\n",
+							"plt.legend()\n",
+							"plt.show()"
+						],
+						"outputs": [],
+						"execution_count": 5
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"# Pie charts\n",
+							"\n",
+							"import matplotlib.pyplot as plt\n",
+							"\n",
+							"labels = 'S1', 'S2', 'S3'\n",
+							"sections = [56, 66, 24]\n",
+							"colors = ['c', 'g', 'y']\n",
+							"\n",
+							"plt.pie(sections, labels=labels, colors=colors,\n",
+							"        startangle=90,\n",
+							"        explode = (0, 0.1, 0),\n",
+							"        autopct = '%1.2f%%')\n",
+							"\n",
+							"plt.axis('equal') # Try commenting this out.\n",
+							"plt.title('Pie Chart Example')\n",
+							"plt.show()"
+						],
+						"outputs": [],
+						"execution_count": 6
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"# fill_between and alpha\n",
+							"\n",
+							"import matplotlib.pyplot as plt\n",
+							"import numpy as np\n",
+							"\n",
+							"ys = 200 + np.random.randn(100)\n",
+							"x = [x for x in range(len(ys))]\n",
+							"\n",
+							"plt.plot(x, ys, '-')\n",
+							"plt.fill_between(x, ys, 195, where=(ys > 195), facecolor='g', alpha=0.6)\n",
+							"\n",
+							"plt.title(\"Fills and Alpha Example\")\n",
+							"plt.show()"
+						],
+						"outputs": [],
+						"execution_count": 7
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"# Subplotting using Subplot2grid\n",
+							"\n",
+							"import matplotlib.pyplot as plt\n",
+							"import numpy as np\n",
+							"\n",
+							"def random_plots():\n",
+							"  xs = []\n",
+							"  ys = []\n",
+							"  \n",
+							"  for i in range(20):\n",
+							"    x = i\n",
+							"    y = np.random.randint(10)\n",
+							"    \n",
+							"    xs.append(x)\n",
+							"    ys.append(y)\n",
+							"  \n",
+							"  return xs, ys\n",
+							"\n",
+							"fig = plt.figure()\n",
+							"ax1 = plt.subplot2grid((5, 2), (0, 0), rowspan=1, colspan=2)\n",
+							"ax2 = plt.subplot2grid((5, 2), (1, 0), rowspan=3, colspan=2)\n",
+							"ax3 = plt.subplot2grid((5, 2), (4, 0), rowspan=1, colspan=1)\n",
+							"ax4 = plt.subplot2grid((5, 2), (4, 1), rowspan=1, colspan=1)\n",
+							"\n",
+							"x, y = random_plots()\n",
+							"ax1.plot(x, y)\n",
+							"\n",
+							"x, y = random_plots()\n",
+							"ax2.plot(x, y)\n",
+							"\n",
+							"x, y = random_plots()\n",
+							"ax3.plot(x, y)\n",
+							"\n",
+							"x, y = random_plots()\n",
+							"ax4.plot(x, y)\n",
+							"\n",
+							"plt.tight_layout()\n",
+							"plt.show()"
+						],
+						"outputs": [],
+						"execution_count": 8
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"# 3D Scatter Plots\n",
+							"\n",
+							"import matplotlib.pyplot as plt\n",
+							"import numpy as np\n",
+							"from mpl_toolkits.mplot3d import axes3d\n",
+							"\n",
+							"fig = plt.figure()\n",
+							"ax = fig.add_subplot(111, projection = '3d')\n",
+							"\n",
+							"x1 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]\n",
+							"y1 = np.random.randint(10, size=10)\n",
+							"z1 = np.random.randint(10, size=10)\n",
+							"\n",
+							"x2 = [-1, -2, -3, -4, -5, -6, -7, -8, -9, -10]\n",
+							"y2 = np.random.randint(-10, 0, size=10)\n",
+							"z2 = np.random.randint(10, size=10)\n",
+							"\n",
+							"ax.scatter(x1, y1, z1, c='b', marker='o', label='blue')\n",
+							"ax.scatter(x2, y2, z2, c='g', marker='D', label='green')\n",
+							"\n",
+							"ax.set_xlabel('x axis')\n",
+							"ax.set_ylabel('y axis')\n",
+							"ax.set_zlabel('z axis')\n",
+							"plt.title(\"3D Scatter Plot Example\")\n",
+							"plt.legend()\n",
+							"plt.tight_layout()\n",
+							"plt.show()"
+						],
+						"outputs": [],
+						"execution_count": 9
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"# 3D Bar Plots\n",
+							"\n",
+							"import matplotlib.pyplot as plt\n",
+							"import numpy as np\n",
+							"\n",
+							"fig = plt.figure()\n",
+							"ax = fig.add_subplot(111, projection = '3d')\n",
+							"\n",
+							"x = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]\n",
+							"y = np.random.randint(10, size=10)\n",
+							"z = np.zeros(10)\n",
+							"\n",
+							"dx = np.ones(10)\n",
+							"dy = np.ones(10)\n",
+							"dz = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]\n",
+							"\n",
+							"ax.bar3d(x, y, z, dx, dy, dz, color='g')\n",
+							"\n",
+							"ax.set_xlabel('x axis')\n",
+							"ax.set_ylabel('y axis')\n",
+							"ax.set_zlabel('z axis')\n",
+							"plt.title(\"3D Bar Chart Example\")\n",
+							"plt.tight_layout()\n",
+							"plt.show()"
+						],
+						"outputs": [],
+						"execution_count": 10
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"# Wireframe Plots\n",
+							"\n",
+							"import matplotlib.pyplot as plt\n",
+							"\n",
+							"fig = plt.figure()\n",
+							"ax = fig.add_subplot(111, projection = '3d')\n",
+							"\n",
+							"x, y, z = axes3d.get_test_data()\n",
+							"\n",
+							"ax.plot_wireframe(x, y, z, rstride = 2, cstride = 2)\n",
+							"\n",
+							"plt.title(\"Wireframe Plot Example\")\n",
+							"plt.tight_layout()\n",
+							"plt.show()"
+						],
+						"outputs": [],
+						"execution_count": 11
+					},
+					{
+						"cell_type": "markdown",
+						"source": [
+							"## Seaborn\n",
+							"Seaborn is a library layered on top of Matplotlib that you can use."
+						]
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"# Scatterplot with a nice regression line fit to it, all with just one call to Seaborn's regplot.\n",
+							"\n",
+							"import matplotlib.pyplot as plt\n",
+							"import numpy as np\n",
+							"import seaborn as sns\n",
+							"\n",
+							"# Generate some random data\n",
+							"num_points = 20\n",
+							"# x will be 5, 6, 7... but also twiddled randomly\n",
+							"x = 5 + np.arange(num_points) + np.random.randn(num_points)\n",
+							"# y will be 10, 11, 12... but twiddled even more randomly\n",
+							"y = 10 + np.arange(num_points) + 5 * np.random.randn(num_points)\n",
+							"sns.regplot(x=x, y=y)\n",
+							"plt.show()"
+						],
+						"outputs": [],
+						"execution_count": 12
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"# Seanborn heatmap\n",
+							"\n",
+							"import matplotlib.pyplot as plt\n",
+							"import numpy as np\n",
+							"\n",
+							"# Make a 10 x 10 heatmap of some random data\n",
+							"side_length = 10\n",
+							"# Start with a 10 x 10 matrix with values randomized around 5\n",
+							"data = 5 + np.random.randn(side_length, side_length)\n",
+							"# The next two lines make the values larger as we get closer to (9, 9)\n",
+							"data += np.arange(side_length)\n",
+							"data += np.reshape(np.arange(side_length), (side_length, 1))\n",
+							"# Generate the heatmap\n",
+							"fig = plt.figure()\n",
+							"ax = fig.add_subplot(111)\n",
+							"sns.heatmap(data, ax=ax)\n",
+							"plt.show()"
+						],
+						"outputs": [],
+						"execution_count": 13
+					},
+					{
+						"cell_type": "markdown",
+						"source": [
+							"## Bokeh\n",
+							"You can render HTML or interactive libraries, like **bokeh**, using the **displayHTML()**.\n",
+							""
+						]
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"import numpy as np\n",
+							"from bokeh.plotting import figure, show\n",
+							"from bokeh.io import output_notebook\n",
+							"from bokeh.embed import file_html\n",
+							"from bokeh.resources import CDN\n",
+							"\n",
+							"N = 4000\n",
+							"x = np.random.random(size=N) * 100\n",
+							"y = np.random.random(size=N) * 100\n",
+							"radii = np.random.random(size=N) * 1.5\n",
+							"colors = [\"#%02x%02x%02x\" % (r, g, 150) for r, g in zip(np.floor(50+2*x).astype(int), np.floor(30+2*y).astype(int))]\n",
+							"\n",
+							"p = figure()\n",
+							"p.circle(x, y, radius=radii, fill_color=colors, fill_alpha=0.6, line_color=None)\n",
+							"show(p)\n",
+							"\n",
+							"# create an html document that embeds the Bokeh plot\n",
+							"html = file_html(p, CDN, \"my plot1\")\n",
+							"\n",
+							"# display this html\n",
+							"displayHTML(html)"
+						],
+						"outputs": [],
+						"execution_count": 14
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"# Plotting glyphs over a map using bokeh.\n",
+							"\n",
+							"from bokeh.plotting import figure, output_file\n",
+							"from bokeh.tile_providers import get_provider, Vendors\n",
+							"from bokeh.embed import file_html\n",
+							"from bokeh.resources import CDN\n",
+							"from bokeh.models import ColumnDataSource\n",
+							"\n",
+							"tile_provider = get_provider(Vendors.CARTODBPOSITRON)\n",
+							"\n",
+							"# range bounds supplied in web mercator coordinates\n",
+							"p = figure(x_range=(-9000000,-8000000), y_range=(4000000,5000000),\n",
+							"           x_axis_type=\"mercator\", y_axis_type=\"mercator\")\n",
+							"p.add_tile(tile_provider)\n",
+							"\n",
+							"# plot datapoints on the map\n",
+							"source = ColumnDataSource(\n",
+							"    data=dict(x=[ -8800000, -8500000 , -8800000],\n",
+							"              y=[4200000, 4500000, 4900000])\n",
+							")\n",
+							"\n",
+							"p.circle(x=\"x\", y=\"y\", size=15, fill_color=\"blue\", fill_alpha=0.8, source=source)\n",
+							"\n",
+							"# create an html document that embeds the Bokeh plot\n",
+							"html = file_html(p, CDN, \"my plot1\")\n",
+							"\n",
+							"# display this html\n",
+							"displayHTML(html)"
+						],
+						"outputs": [],
+						"execution_count": 15
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"## Plotly\r\n",
+							"You can render HTML or interactive libraries like **Plotly**, using the **displayHTML()**."
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": true
+						},
+						"source": [
+							"from urllib.request import urlopen\r\n",
+							"import json\r\n",
+							"with urlopen('https://raw.githubusercontent.com/plotly/datasets/master/geojson-counties-fips.json') as response:\r\n",
+							"    counties = json.load(response)\r\n",
+							"\r\n",
+							"import pandas as pd\r\n",
+							"df = pd.read_csv(\"https://raw.githubusercontent.com/plotly/datasets/master/fips-unemp-16.csv\",\r\n",
+							"                   dtype={\"fips\": str})\r\n",
+							"\r\n",
+							"import plotly\r\n",
+							"import plotly.express as px\r\n",
+							"\r\n",
+							"fig = px.choropleth(df, geojson=counties, locations='fips', color='unemp',\r\n",
+							"                           color_continuous_scale=\"Viridis\",\r\n",
+							"                           range_color=(0, 12),\r\n",
+							"                           scope=\"usa\",\r\n",
+							"                           labels={'unemp':'unemployment rate'}\r\n",
+							"                          )\r\n",
+							"fig.update_layout(margin={\"r\":0,\"t\":0,\"l\":0,\"b\":0})\r\n",
+							"\r\n",
+							"# create an html document that embeds the Plotly plot\r\n",
+							"h = plotly.offline.plot(fig, output_type='div')\r\n",
+							"\r\n",
+							"# display this html\r\n",
+							"displayHTML(h)"
+						],
+						"outputs": [],
+						"execution_count": 16
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/Data Exploration and ML Modeling - NYC taxi predict using Spark MLlib')]",
+			"type": "Microsoft.Synapse/workspaces/notebooks",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"folder": {
+					"name": "Samples"
+				},
+				"nbformat": 4,
+				"nbformat_minor": 2,
+				"sessionProperties": {
+					"driverMemory": "28g",
+					"driverCores": 4,
+					"executorMemory": "28g",
+					"executorCores": 4,
+					"numExecutors": 2,
+					"conf": {
+						"spark.dynamicAllocation.enabled": "false",
+						"spark.dynamicAllocation.minExecutors": "2",
+						"spark.dynamicAllocation.maxExecutors": "2",
+						"spark.autotune.trackingId": "f5826fdd-598b-4fb8-9e16-18d3fb61f82b"
+					}
+				},
+				"metadata": {
+					"saveOutput": true,
+					"enableDebugMode": false,
+					"kernelspec": {
+						"name": "synapse_pyspark",
+						"display_name": "Synapse PySpark"
+					},
+					"language_info": {
+						"name": "python"
+					},
+					"sessionKeepAliveTimeout": 30
+				},
+				"cells": [
+					{
+						"cell_type": "markdown",
+						"source": [
+							"# Predict NYC Taxi Tips using Spark ML and Azure Open Datasets\n",
+							"\n",
+							"The notebook ingests, visualizes, prepares and then trains a model based on an Open Dataset that tracks NYC Yellow Taxi trips and various attributes around them.\n",
+							"The goal is to predict for a given trip whether there will be a tip or not.\n",
+							""
+						]
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"import matplotlib.pyplot as plt\n",
+							"\n",
+							"from pyspark.sql.functions import unix_timestamp\n",
+							"\n",
+							"from pyspark.sql import SparkSession\n",
+							"from pyspark.sql.types import *\n",
+							"from pyspark.sql.functions import *\n",
+							"\n",
+							"from pyspark.ml import Pipeline\n",
+							"from pyspark.ml import PipelineModel\n",
+							"from pyspark.ml.feature import RFormula\n",
+							"from pyspark.ml.feature import OneHotEncoder, StringIndexer, VectorIndexer\n",
+							"from pyspark.ml.classification import LogisticRegression\n",
+							"from pyspark.mllib.evaluation import BinaryClassificationMetrics\n",
+							"from pyspark.ml.evaluation import BinaryClassificationEvaluator"
+						],
+						"outputs": [],
+						"execution_count": 1
+					},
+					{
+						"cell_type": "markdown",
+						"source": [
+							"## Ingest Data¶ \n",
+							"\n",
+							"Get a sample data of nyc yellow taxi to make it faster/easier to evaluate different approaches to prep for the modelling phase later in the notebook."
+						]
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"# Import NYC yellow cab data from Azure Open Datasets\n",
+							"from azureml.opendatasets import NycTlcYellow\n",
+							"\n",
+							"from datetime import datetime\n",
+							"from dateutil import parser\n",
+							"\n",
+							"end_date = parser.parse('2018-05-08 00:00:00')\n",
+							"start_date = parser.parse('2018-05-01 00:00:00')\n",
+							"\n",
+							"nyc_tlc = NycTlcYellow(start_date=start_date, end_date=end_date)\n",
+							"nyc_tlc_df = nyc_tlc.to_spark_dataframe()"
+						],
+						"outputs": [],
+						"execution_count": 2
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"#To make development easier, faster and less expensive downsample for now\n",
+							"sampled_taxi_df = nyc_tlc_df.sample(True, 0.001, seed=1234)"
+						],
+						"outputs": [],
+						"execution_count": 3
+					},
+					{
+						"cell_type": "markdown",
+						"source": [
+							"## Exploratory Data Analysis\n",
+							"\n",
+							"Look at the data and evaluate its suitability for use in a model, do this via some basic charts focussed on tip values and relationships."
+						]
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"#The charting package needs a Pandas dataframe or numpy array do the conversion\n",
+							"sampled_taxi_pd_df = sampled_taxi_df.toPandas()\n",
+							"\n",
+							"# Look at tips by amount count histogram\n",
+							"ax1 = sampled_taxi_pd_df['tipAmount'].plot(kind='hist', bins=25, facecolor='lightblue')\n",
+							"ax1.set_title('Tip amount distribution')\n",
+							"ax1.set_xlabel('Tip Amount ($)')\n",
+							"ax1.set_ylabel('Counts')\n",
+							"plt.suptitle('')\n",
+							"plt.show()\n",
+							"\n",
+							"# How many passengers tip'd by various amounts\n",
+							"ax2 = sampled_taxi_pd_df.boxplot(column=['tipAmount'], by=['passengerCount'])\n",
+							"ax2.set_title('Tip amount by Passenger count')\n",
+							"ax2.set_xlabel('Passenger count') \n",
+							"ax2.set_ylabel('Tip Amount ($)')\n",
+							"plt.suptitle('')\n",
+							"plt.show()\n",
+							"\n",
+							"# Look at the relationship between fare and tip amounts\n",
+							"ax = sampled_taxi_pd_df.plot(kind='scatter', x= 'fareAmount', y = 'tipAmount', c='blue', alpha = 0.10, s=2.5*(sampled_taxi_pd_df['passengerCount']))\n",
+							"ax.set_title('Tip amount by Fare amount')\n",
+							"ax.set_xlabel('Fare Amount ($)')\n",
+							"ax.set_ylabel('Tip Amount ($)')\n",
+							"plt.axis([-2, 80, -2, 20])\n",
+							"plt.suptitle('')\n",
+							"plt.show()"
+						],
+						"outputs": [],
+						"execution_count": 4
+					},
+					{
+						"cell_type": "markdown",
+						"source": [
+							"## Data Prep and Featurization\n",
+							"\n",
+							"It's clear from the visualizations above that there are a bunch of outliers in the data. These will need to be filtered out in addition there are extra variables that are not going to be useful in the model we build at the end.\n",
+							"\n",
+							"Finally there is a need to create some new (derived) variables that will work better with the model.\n",
+							""
+						]
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"taxi_df = sampled_taxi_df.select('totalAmount', 'fareAmount', 'tipAmount', 'paymentType', 'rateCodeId', 'passengerCount'\\\n",
+							"                                , 'tripDistance', 'tpepPickupDateTime', 'tpepDropoffDateTime'\\\n",
+							"                                , date_format('tpepPickupDateTime', 'hh').alias('pickupHour')\\\n",
+							"                                , date_format('tpepPickupDateTime', 'EEEE').alias('weekdayString')\\\n",
+							"                                , (unix_timestamp(col('tpepDropoffDateTime')) - unix_timestamp(col('tpepPickupDateTime'))).alias('tripTimeSecs')\\\n",
+							"                                , (when(col('tipAmount') > 0, 1).otherwise(0)).alias('tipped')\n",
+							"                                )\\\n",
+							"                        .filter((sampled_taxi_df.passengerCount > 0) & (sampled_taxi_df.passengerCount < 8)\\\n",
+							"                                & (sampled_taxi_df.tipAmount >= 0) & (sampled_taxi_df.tipAmount <= 25)\\\n",
+							"                                & (sampled_taxi_df.fareAmount >= 1) & (sampled_taxi_df.fareAmount <= 250)\\\n",
+							"                                & (sampled_taxi_df.tipAmount < sampled_taxi_df.fareAmount)\\\n",
+							"                                & (sampled_taxi_df.tripDistance > 0) & (sampled_taxi_df.tripDistance <= 100)\\\n",
+							"                                & (sampled_taxi_df.rateCodeId <= 5)\n",
+							"                                & (sampled_taxi_df.paymentType.isin({\"1\", \"2\"}))\n",
+							"                                )"
+						],
+						"outputs": [],
+						"execution_count": 5
+					},
+					{
+						"cell_type": "markdown",
+						"source": [
+							"## Data Prep and Featurization Part 2\n",
+							"\n",
+							"Having created new variables its now possible to drop the columns they were derived from so that the dataframe that goes into the model is the smallest in terms of number of variables, that is required.\n",
+							"\n",
+							"Also create some more features based on new columns from the first round.\n",
+							""
+						]
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"taxi_featurised_df = taxi_df.select('totalAmount', 'fareAmount', 'tipAmount', 'paymentType', 'passengerCount'\\\n",
+							"                                                , 'tripDistance', 'weekdayString', 'pickupHour','tripTimeSecs','tipped'\\\n",
+							"                                                , when((taxi_df.pickupHour <= 6) | (taxi_df.pickupHour >= 20),\"Night\")\\\n",
+							"                                                .when((taxi_df.pickupHour >= 7) & (taxi_df.pickupHour <= 10), \"AMRush\")\\\n",
+							"                                                .when((taxi_df.pickupHour >= 11) & (taxi_df.pickupHour <= 15), \"Afternoon\")\\\n",
+							"                                                .when((taxi_df.pickupHour >= 16) & (taxi_df.pickupHour <= 19), \"PMRush\")\\\n",
+							"                                                .otherwise(0).alias('trafficTimeBins')\n",
+							"                                              )\\\n",
+							"                                       .filter((taxi_df.tripTimeSecs >= 30) & (taxi_df.tripTimeSecs <= 7200))"
+						],
+						"outputs": [],
+						"execution_count": 6
+					},
+					{
+						"cell_type": "markdown",
+						"source": [
+							"## Encoding\n",
+							"\n",
+							"Different ML algorithms support different types of input, for this example Logistic Regression is being used for Binary Classification. This means that any Categorical (string) variables must be converted to numbers.\n",
+							"\n",
+							"The process is not as simple as a \"map\" style function as the relationship between the numbers can introduce a bias in the resulting model, the approach is to index the variable and then encode using a std approach called One Hot Encoding.\n",
+							"\n",
+							"This approach requires the encoder to \"learn\"/fit a model over the data in the Spark instance and then transform based on what was learnt.\n",
+							""
+						]
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"# The sample uses an algorithm that only works with numeric features convert them so they can be consumed\n",
+							"sI1 = StringIndexer(inputCol=\"trafficTimeBins\", outputCol=\"trafficTimeBinsIndex\"); \n",
+							"en1 = OneHotEncoder(dropLast=False, inputCol=\"trafficTimeBinsIndex\", outputCol=\"trafficTimeBinsVec\");\n",
+							"sI2 = StringIndexer(inputCol=\"weekdayString\", outputCol=\"weekdayIndex\"); \n",
+							"en2 = OneHotEncoder(dropLast=False, inputCol=\"weekdayIndex\", outputCol=\"weekdayVec\");\n",
+							"\n",
+							"# Create a new dataframe that has had the encodings applied\n",
+							"encoded_final_df = Pipeline(stages=[sI1, en1, sI2, en2]).fit(taxi_featurised_df).transform(taxi_featurised_df)"
+						],
+						"outputs": [],
+						"execution_count": 7
+					},
+					{
+						"cell_type": "markdown",
+						"source": [
+							"## Generation of Testing and Training Data Sets\n",
+							"Simple split, 70% for training and 30% for testing the model. Playing with this ratio may result in different models.\n",
+							""
+						]
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"# Decide on the split between training and testing data from the dataframe \n",
+							"trainingFraction = 0.7\n",
+							"testingFraction = (1-trainingFraction)\n",
+							"seed = 1234\n",
+							"\n",
+							"# Split the dataframe into test and training dataframes\n",
+							"train_data_df, test_data_df = encoded_final_df.randomSplit([trainingFraction, testingFraction], seed=seed)"
+						],
+						"outputs": [],
+						"execution_count": 8
+					},
+					{
+						"cell_type": "markdown",
+						"source": [
+							"## Train the Model\n",
+							"\n",
+							"Train the Logistic Regression model and then evaluate it using Area under ROC as the metric."
+						]
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"## Create a new LR object for the model\n",
+							"logReg = LogisticRegression(maxIter=10, regParam=0.3, labelCol = 'tipped')\n",
+							"\n",
+							"## The formula for the model\n",
+							"classFormula = RFormula(formula=\"tipped ~ pickupHour + weekdayVec + passengerCount + tripTimeSecs + tripDistance + fareAmount + paymentType+ trafficTimeBinsVec\")\n",
+							"\n",
+							"## Undertake training and create an LR model\n",
+							"lrModel = Pipeline(stages=[classFormula, logReg]).fit(train_data_df)\n",
+							"\n",
+							"## Saving the model is optional but its another for of inter session cache\n",
+							"datestamp = datetime.now().strftime('%m-%d-%Y-%s');\n",
+							"fileName = \"lrModel_\" + datestamp;\n",
+							"logRegDirfilename = fileName;\n",
+							"lrModel.save(logRegDirfilename)\n",
+							"\n",
+							"## Predict tip 1/0 (yes/no) on the test dataset, evaluation using AUROC\n",
+							"predictions = lrModel.transform(test_data_df)\n",
+							"predictionAndLabels = predictions.select(\"prediction\", \"label\").rdd\n",
+							"metrics = BinaryClassificationMetrics(predictionAndLabels)\n",
+							"print(\"Area under ROC = %s\" % metrics.areaUnderROC)"
+						],
+						"outputs": [],
+						"execution_count": 9
+					},
+					{
+						"cell_type": "markdown",
+						"source": [
+							"## Evaluate and Visualize\n",
+							"\n",
+							"Plot the actual curve to develop a better understanding of the model.\n",
+							""
+						]
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"## Plot the ROC curve, no need for pandas as this uses the modelSummary object\n",
+							"modelSummary = lrModel.stages[-1].summary\n",
+							"\n",
+							"plt.plot([0, 1], [0, 1], 'r--')\n",
+							"plt.plot(modelSummary.roc.select('FPR').collect(),\n",
+							"         modelSummary.roc.select('TPR').collect())\n",
+							"plt.xlabel('False Positive Rate')\n",
+							"plt.ylabel('True Positive Rate')\n",
+							"plt.show()"
+						],
+						"outputs": [],
+						"execution_count": 10
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/Using Azure Open Datasets in Synapse')]",
+			"type": "Microsoft.Synapse/workspaces/notebooks",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"folder": {
+					"name": "Samples"
+				},
+				"nbformat": 4,
+				"nbformat_minor": 2,
+				"bigDataPool": {
+					"referenceName": "sparknonprod",
+					"type": "BigDataPoolReference"
+				},
+				"sessionProperties": {
+					"driverMemory": "28g",
+					"driverCores": 4,
+					"executorMemory": "28g",
+					"executorCores": 4,
+					"numExecutors": 2,
+					"conf": {
+						"spark.dynamicAllocation.enabled": "false",
+						"spark.dynamicAllocation.minExecutors": "2",
+						"spark.dynamicAllocation.maxExecutors": "2",
+						"spark.autotune.trackingId": "b4d4a4e4-8e73-49f4-acbc-a1d728544d67"
+					}
+				},
+				"metadata": {
+					"saveOutput": true,
+					"enableDebugMode": false,
+					"kernelspec": {
+						"name": "synapse_pyspark",
+						"display_name": "Synapse PySpark"
+					},
+					"language_info": {
+						"name": "scala"
+					},
+					"a365ComputeOptions": {
+						"id": "/subscriptions/b3d87898-3bc9-4864-ba33-06c31dea9d94/resourceGroups/rg-cdw-nonprod/providers/Microsoft.Synapse/workspaces/wkspc-cdw-nonprod/bigDataPools/sparknonprod",
+						"name": "sparknonprod",
+						"type": "Spark",
+						"endpoint": "https://wkspc-cdw-nonprod.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/sparknonprod",
+						"auth": {
+							"type": "AAD",
+							"authResource": "https://dev.azuresynapse.net"
+						},
+						"sparkVersion": "3.2",
+						"nodeCount": 10,
+						"cores": 4,
+						"memory": 28
+					},
+					"sessionKeepAliveTimeout": 30
+				},
+				"cells": [
+					{
+						"cell_type": "markdown",
+						"source": [
+							"# Using Azure Open Datasets in Synapse - Enrich NYC Green Taxi Data with Holiday and Weather\n",
+							"\n",
+							"Synapse has [Azure Open Datasets](https://azure.microsoft.com/en-us/services/open-datasets/) package pre-installed. This notebook provides examples of how to enrich NYC Green Taxi Data with Holiday and Weather with focusing on :\n",
+							"- read Azure Open Dataset\n",
+							"- manipulate the data to prepare for further analysis, including column projection, filtering, grouping and joins etc. \n",
+							"- create a Spark table to be used in other notebooks for modeling training"
+						]
+					},
+					{
+						"cell_type": "markdown",
+						"source": [
+							"## Data loading \n",
+							"Let's first load the [NYC green taxi trip records](https://azure.microsoft.com/en-us/services/open-datasets/catalog/nyc-taxi-limousine-commission-green-taxi-trip-records/). The Open Datasets package contains a class representing each data source (NycTlcGreen for example) to easily filter date parameters before downloading."
+						]
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"// Load nyc green taxi trip records from azure open dataset\n",
+							"val blob_account_name = \"azureopendatastorage\"\n",
+							"\n",
+							"val nyc_blob_container_name = \"nyctlc\"\n",
+							"val nyc_blob_relative_path = \"green\"\n",
+							"val nyc_blob_sas_token = \"\"\n",
+							"\n",
+							"val nyc_wasbs_path = f\"wasbs://$nyc_blob_container_name@$blob_account_name.blob.core.windows.net/$nyc_blob_relative_path\"\n",
+							"spark.conf.set(f\"fs.azure.sas.$nyc_blob_container_name.$blob_account_name.blob.core.windows.net\",nyc_blob_sas_token)\n",
+							"\n",
+							"val nyc_tlc = spark.read.parquet(nyc_wasbs_path)\n",
+							"\n",
+							"//nyc_tlc.show(5, truncate = false)"
+						],
+						"outputs": [],
+						"execution_count": 1
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"// Filter data by time range\n",
+							"import java.sql.Timestamp\n",
+							"import org.joda.time.DateTime\n",
+							"\n",
+							"val end_date = new Timestamp(DateTime.parse(\"2018-06-06\").getMillis)\n",
+							"val start_date = new Timestamp(DateTime.parse(\"2018-05-01\").getMillis)\n",
+							"\n",
+							"val nyc_tlc_df = nyc_tlc.filter((nyc_tlc(\"lpepPickupDatetime\") >= start_date) && (nyc_tlc(\"lpepPickupDatetime\") <= end_date)) \n",
+							"nyc_tlc_df.show(5, truncate = false)"
+						],
+						"outputs": [],
+						"execution_count": 2
+					},
+					{
+						"cell_type": "markdown",
+						"source": [
+							"Now that the initial data is loaded. Let's do some projection on the data to \n",
+							"- create new columns for the month number, day of month, day of week, and hour of day. These info is going to be used in the training model to factor in time-based seasonality.\n",
+							"- add a static feature for the country code to join holiday data. "
+						]
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"// Extract month, day of month, and day of week from pickup datetime and add a static column for the country code to join holiday data. \n",
+							"import org.apache.spark.sql.functions._\n",
+							"\n",
+							"val nyc_tlc_df_expand = (\n",
+							"                        nyc_tlc_df.withColumn(\"datetime\", to_date(col(\"lpepPickupDatetime\")))\n",
+							"                                  .withColumn(\"month_num\",month(col(\"lpepPickupDatetime\")))\n",
+							"                                  .withColumn(\"day_of_month\",dayofmonth(col(\"lpepPickupDatetime\")))\n",
+							"                                  .withColumn(\"day_of_week\",dayofweek(col(\"lpepPickupDatetime\")))\n",
+							"                                  .withColumn(\"hour_of_day\",hour(col(\"lpepPickupDatetime\")))\n",
+							"                                  .withColumn(\"country_code\",lit(\"US\"))\n",
+							"                        )"
+						],
+						"outputs": [],
+						"execution_count": 3
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"// Display 5 rows\n",
+							"// nyc_tlc_df_expand.show(5, truncate = false)"
+						],
+						"outputs": [],
+						"execution_count": 4
+					},
+					{
+						"cell_type": "markdown",
+						"source": [
+							"Remove some of the columns that won't need for modeling or additional feature building.\n",
+							"\n",
+							"\n",
+							""
+						]
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"// Remove unused columns from nyc green taxi data\n",
+							"val nyc_tlc_df_clean = nyc_tlc_df_expand.drop(\n",
+							"                    \"lpepDropoffDatetime\", \"puLocationId\", \"doLocationId\", \"pickupLongitude\", \n",
+							"                     \"pickupLatitude\", \"dropoffLongitude\",\"dropoffLatitude\" ,\"rateCodeID\", \n",
+							"                     \"storeAndFwdFlag\",\"paymentType\", \"fareAmount\", \"extra\", \"mtaTax\",\n",
+							"                     \"improvementSurcharge\", \"tollsAmount\", \"ehailFee\", \"tripType\" )"
+						],
+						"outputs": [],
+						"execution_count": 5
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"// Display 5 rows\n",
+							"nyc_tlc_df_clean.show(5, truncate = false)"
+						],
+						"outputs": [],
+						"execution_count": 6
+					},
+					{
+						"cell_type": "markdown",
+						"source": [
+							"## Enrich with holiday data\n",
+							"Now that we have taxi data downloaded and roughly prepared, add in holiday data as additional features. Holiday-specific features will assist model accuracy, as major holidays are times where taxi demand increases dramatically and supply becomes limited. \n",
+							"\n",
+							"Let's load the [public holidays](https://azure.microsoft.com/en-us/services/open-datasets/catalog/public-holidays/) from Azure Open datasets.\n",
+							""
+						]
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"// Load public holidays data from azure open dataset\n",
+							"val hol_blob_container_name = \"holidaydatacontainer\"\n",
+							"val hol_blob_relative_path = \"Processed\"\n",
+							"val hol_blob_sas_token = \"\"\n",
+							"\n",
+							"val hol_wasbs_path = f\"wasbs://$hol_blob_container_name@$blob_account_name.blob.core.windows.net/$hol_blob_relative_path\"\n",
+							"spark.conf.set(f\"fs.azure.sas.$hol_blob_container_name.$blob_account_name.blob.core.windows.net\",hol_blob_sas_token)\n",
+							"\n",
+							"val hol_raw = spark.read.parquet(hol_wasbs_path)\n",
+							"\n",
+							"// Filter data by time range\n",
+							"val hol_df = hol_raw.filter((hol_raw(\"date\") >= start_date) && (hol_raw(\"date\") <= end_date))\n",
+							"\n",
+							"// Display 5 rows\n",
+							"// hol_df.show(5, truncate = false)"
+						],
+						"outputs": [],
+						"execution_count": 7
+					},
+					{
+						"cell_type": "markdown",
+						"source": [
+							"Rename the countryRegionCode and date columns to match the respective field names from the taxi data, and also normalize the time so it can be used as a key. "
+						]
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"val hol_df_clean = (\n",
+							"                hol_df.withColumnRenamed(\"countryRegionCode\",\"country_code\")\n",
+							"                .withColumn(\"datetime\",to_date(col(\"date\")))\n",
+							"                )\n",
+							"\n",
+							"hol_df_clean.show(5, truncate = false)"
+						],
+						"outputs": [],
+						"execution_count": 8
+					},
+					{
+						"cell_type": "markdown",
+						"source": [
+							"Next, join the holiday data with the taxi data by performing a left-join. This will preserve all records from taxi data, but add in holiday data where it exists for the corresponding datetime and country_code, which in this case is always \"US\". Preview the data to verify that they were merged correctly."
+						]
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"// enrich taxi data with holiday data\n",
+							"val nyc_taxi_holiday_df = nyc_tlc_df_clean.join(hol_df_clean, Seq(\"datetime\", \"country_code\") , \"left\")\n",
+							"\n",
+							"nyc_taxi_holiday_df.show(5,truncate = false)"
+						],
+						"outputs": [],
+						"execution_count": 9
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"// Create a temp table and filter out non empty holiday rows\n",
+							"\n",
+							"nyc_taxi_holiday_df.createOrReplaceTempView(\"nyc_taxi_holiday_df\")\n",
+							"val result = spark.sql(\"SELECT * from nyc_taxi_holiday_df WHERE holidayName is NOT NULL \")\n",
+							"result.show(5, truncate = false)"
+						],
+						"outputs": [],
+						"execution_count": 10
+					},
+					{
+						"cell_type": "markdown",
+						"source": [
+							"## Enrich with weather data¶\n",
+							"\n",
+							"Now we append NOAA surface weather data to the taxi and holiday data. Use a similar approach to fetch the [NOAA weather history data](https://azure.microsoft.com/en-us/services/open-datasets/catalog/noaa-integrated-surface-data/) from Azure Open Datasets. "
+						]
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"// Load weather data from azure open dataset\n",
+							"val weather_blob_container_name = \"isdweatherdatacontainer\"\n",
+							"val weather_blob_relative_path = \"ISDWeather/\"\n",
+							"val weather_blob_sas_token = \"\"\n",
+							"\n",
+							"val weather_wasbs_path = f\"wasbs://$weather_blob_container_name@$blob_account_name.blob.core.windows.net/$weather_blob_relative_path\"\n",
+							"spark.conf.set(f\"fs.azure.sas.$weather_blob_container_name.$blob_account_name.blob.core.windows.net\",hol_blob_sas_token)\n",
+							"\n",
+							"val isd = spark.read.parquet(weather_wasbs_path)\n",
+							"\n",
+							"// Display 5 rows\n",
+							"// isd.show(5, truncate = false)"
+						],
+						"outputs": [],
+						"execution_count": 11
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"// Filter data by time range\n",
+							"val isd_df = isd.filter((isd(\"datetime\") >= start_date) && (isd(\"datetime\") <= end_date))\n",
+							"\n",
+							"// Display 5 rows\n",
+							"isd_df.show(5, truncate = false)"
+						],
+						"outputs": [],
+						"execution_count": 12
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"// Filter out weather info for new york city, remove the recording with null temperature \n",
+							"\n",
+							"val weather_df = (\n",
+							"                isd_df.filter(isd_df(\"latitude\") >= \"40.53\")\n",
+							"                        .filter(isd_df(\"latitude\") <= \"40.88\")\n",
+							"                        .filter(isd_df(\"longitude\") >= \"-74.09\")\n",
+							"                        .filter(isd_df(\"longitude\") <= \"-73.72\")\n",
+							"                        .filter(isd_df(\"temperature\").isNotNull)\n",
+							"                        .withColumnRenamed(\"datetime\",\"datetime_full\")\n",
+							"                        )"
+						],
+						"outputs": [],
+						"execution_count": 13
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"// Remove unused columns\n",
+							"val weather_df_clean = weather_df.drop(\"usaf\", \"wban\", \"longitude\", \"latitude\").withColumn(\"datetime\", to_date(col(\"datetime_full\")))\n",
+							"\n",
+							"//weather_df_clean.show(5, truncate = false)"
+						],
+						"outputs": [],
+						"execution_count": 14
+					},
+					{
+						"cell_type": "markdown",
+						"source": [
+							"Next group the weather data so that you have daily aggregated weather values. \n",
+							""
+						]
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"// Enrich weather data with aggregation statistics\n",
+							"\n",
+							"val weather_df_grouped = (\n",
+							"                        weather_df_clean.groupBy('datetime).\n",
+							"                        agg(\n",
+							"                            mean('snowDepth) as \"avg_snowDepth\",\n",
+							"                            max('precipTime) as \"max_precipTime\",\n",
+							"                            mean('temperature) as \"avg_temperature\",\n",
+							"                            max('precipDepth) as \"max_precipDepth\"\n",
+							"                            )\n",
+							"                        )\n",
+							"\n",
+							"weather_df_grouped.show(5, truncate = false)"
+						],
+						"outputs": [],
+						"execution_count": 15
+					},
+					{
+						"cell_type": "markdown",
+						"source": [
+							"Merge the taxi and holiday data you prepared with the new weather data. This time you only need the datetime key, and again perform a left-join of the data. Run the describe() function on the new dataframe to see summary statistics for each field."
+						]
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"// Enrich taxi data with weather\n",
+							"val nyc_taxi_holiday_weather_df = nyc_taxi_holiday_df.join(weather_df_grouped, Seq(\"datetime\") ,\"left\")\n",
+							"nyc_taxi_holiday_weather_df.cache()"
+						],
+						"outputs": [],
+						"execution_count": 16
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"nyc_taxi_holiday_weather_df.show(5,truncate = false)"
+						],
+						"outputs": [],
+						"execution_count": 17
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"collapsed": false
+						},
+						"source": [
+							"// Run the describe() function on the new dataframe to see summary statistics for each field.\n",
+							"display(nyc_taxi_holiday_weather_df.describe())"
+						],
+						"outputs": [],
+						"execution_count": 18
+					},
+					{
+						"cell_type": "markdown",
+						"source": [
+							"The summary statistics shows that the totalAmount field has negative values, which don't make sense in the context.\n",
+							"\n",
+							""
+						]
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"// Remove invalid rows with less than 0 taxi fare or tip\n",
+							"val final_df = (\n",
+							"            nyc_taxi_holiday_weather_df.\n",
+							"            filter(nyc_taxi_holiday_weather_df(\"tipAmount\") > 0).\n",
+							"            filter(nyc_taxi_holiday_weather_df(\"totalAmount\") > 0)\n",
+							"            )"
+						],
+						"outputs": [],
+						"execution_count": 19
+					},
+					{
+						"cell_type": "markdown",
+						"source": [
+							"## Cleaning up the existing Database\n",
+							"\n",
+							"First we need to drop the tables since Spark requires that a database is empty before we can drop the Database.\n",
+							"\n",
+							"Then we recreate the database and set the default database context to it."
+						]
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"spark.sql(\"DROP TABLE IF EXISTS NYCTaxi.nyc_taxi_holiday_weather\"); "
+						],
+						"outputs": [],
+						"execution_count": 20
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"spark.sql(\"DROP DATABASE IF EXISTS NYCTaxi\"); \n",
+							"spark.sql(\"CREATE DATABASE NYCTaxi\"); \n",
+							"spark.sql(\"USE NYCTaxi\");"
+						],
+						"outputs": [],
+						"execution_count": 21
+					},
+					{
+						"cell_type": "markdown",
+						"source": [
+							"## Creating a new table\n",
+							"We create a nyc_taxi_holiday_weather table from the nyc_taxi_holiday_weather dataframe.\n",
+							""
+						]
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"final_df.write.saveAsTable(\"nyc_taxi_holiday_weather\");\n",
+							"val final_results = spark.sql(\"SELECT COUNT(*) FROM nyc_taxi_holiday_weather\");\n",
+							"final_results.show(5, truncate = false)"
+						],
+						"outputs": [],
+						"execution_count": 22
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/nb-api-extract-raw')]",
+			"type": "Microsoft.Synapse/workspaces/notebooks",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"folder": {
+					"name": "Projects"
+				},
 				"nbformat": 4,
 				"nbformat_minor": 2,
 				"bigDataPool": {
@@ -156,7 +1923,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "78786ddf-ecbf-425b-a651-988577072501"
+						"spark.autotune.trackingId": "dbe07de4-0857-48c6-b5f8-7b1ad4bd6ed5"
 					}
 				},
 				"metadata": {
@@ -188,12 +1955,8 @@
 				},
 				"cells": [
 					{
-						"cell_type": "code",
+						"cell_type": "markdown",
 						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
 							"nteract": {
 								"transient": {
 									"deleting": false
@@ -201,30 +1964,21 @@
 							}
 						},
 						"source": [
-							"import os\r\n",
-							"from azure.keyvault.secrets import SecretClient\r\n",
-							"from azure.identity import DefaultAzureCredential\r\n",
-							"import requests\r\n",
-							"import json\r\n",
-							"\r\n",
-							"kvName = 'kv-cdw-nonprod'\r\n",
-							"kvUri = f'https://{kvName}.vault.azure.net'\r\n",
-							"\r\n",
-							"credential = DefaultAzureCredential(exclude_shared_token_cache_credential=True)\r\n",
-							"client = SecretClient(vault_url=kvUri, credential=credential)\r\n",
-							"\r\n",
-							"unSrcApi = client.get_secret(\"un-peloton-api\").value\r\n",
-							"pwSrcApi = client.get_secret(\"pw-peloton-api\").value\r\n",
-							"srcSession = requests.Session()\r\n",
-							"\r\n",
-							"apiCredentials = {'username_or_email': unSrcApi, 'password': pwSrcApi}\r\n",
-							"apiSession.post('https://api.onepeloton.com/auth/login', json=srcCredentials)\r\n",
-							"\r\n",
-							"apiResponse = apiSession.get('https://api.onepeloton.com/api/me')\r\n",
-							"print(json.loads(apiResponse))"
-						],
-						"outputs": [],
-						"execution_count": 2
+							"# **Extracting Data from [REST API](https://github.com/geudrik/peloton-client-library/blob/master/API_DOCS.md)**"
+						]
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"## Connect to API"
+						]
 					},
 					{
 						"cell_type": "code",
@@ -240,13 +1994,97 @@
 							}
 						},
 						"source": [
-							"params = {'session_id': '113267f50cbd43adaa092b0dcaec3272', 'userId': 'be3b20e8abec48c690be7a1ab1abb9de'}\r\n",
+							"#Import Python packages supporting REST API processing \r\n",
+							"import requests\r\n",
+							"import json\r\n",
+							"\r\n",
+							"#Define Azure Linked Services and Source Parameters\r\n",
+							"kvName = 'kv-cdw-nonprod'\r\n",
+							"lsKvName = 'lsakvcdwnonprod'\r\n",
+							"srcName = 'peloton'\r\n",
+							"baseUrl = 'https://api.onepeloton.com'\r\n",
+							"\r\n",
+							"#Get Source Credentials from Key Vault\r\n",
+							"unSrcApi = mssparkutils.credentials.getSecret(kvName,f\"un-{srcName}-api\", lsKvName)\r\n",
+							"pwSrcApi = mssparkutils.credentials.getSecret(kvName,f\"pw-{srcName}-api\", lsKvName)\r\n",
+							"\r\n",
+							"#Create API Session and Authenticate\r\n",
+							"apiSession = requests.Session()\r\n",
+							"apiCredentials = {'username_or_email': unSrcApi, 'password': pwSrcApi}\r\n",
+							"userSession = apiSession.post(f'{baseUrl}/auth/login', json=apiCredentials)\r\n",
+							"\r\n",
+							"#Read API Session Response\r\n",
+							"loginResponse = json.loads(userSession.text)\r\n",
+							"sessionId = loginResponse[\"session_id\"]\r\n",
+							"userId = loginResponse[\"user_id\"]"
+						],
+						"outputs": [],
+						"execution_count": 6
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"## Extract Data from Endpoints to Raw Zone"
+						]
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"### Get Anonymous Endpoint Data"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"endpoints = ['workouts', '']\r\n",
+							"\r\n",
+							"https://api.onepeloton.com/api/me\r\n",
+							"\r\n",
+							"userProfile = apiSession.get('f{baseUrl}/auth/login')\r\n",
 							"\r\n",
 							"workouts = w.get('https://api.onepeloton.com/api/user/be3b20e8abec48c690be7a1ab1abb9de/workouts')\r\n",
 							"print(workouts.text)"
 						],
 						"outputs": [],
-						"execution_count": 37
+						"execution_count": 45
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"### Get Privileged Endpoint Data"
+						]
 					},
 					{
 						"cell_type": "code",
@@ -282,108 +2120,18 @@
 							}
 						},
 						"source": [
-							"spark.conf.set(\"spark.storage.synapse.akv\", \"kv-cdw-nonprod\")  \r\n",
-							"spark.conf.set(\"spark.storage.akv.secret\", \"un-peloton-api\")  "
+							"#Get User ID to pass into other calls\r\n",
+							"profileData = apiSession.get(f'{baseUrl}/api/me')\r\n",
+							"profileResponse = json.loads(profileData.text)\r\n",
+							"print(profileResponse)\r\n",
+							""
 						],
 						"outputs": [],
-						"execution_count": 7
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"import sys\r\n",
-							"from pyspark.sql import SparkSession\r\n",
-							"\r\n",
-							"sc = SparkSession.builder.getOrCreate()\r\n",
-							"token_library = sc._jvm.com.microsoft.azure.synapse.tokenlibrary.TokenLibrary\r\n",
-							"\r\n",
-							"connection_string = token_library.GetSecret(\"kv-cdw-nonprod\", \"un-peloton-api\", \"lsakvcdwnonprod\")\r\n",
-							"print(connection_string)"
-						],
-						"outputs": [],
-						"execution_count": 1
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"mssparkutils.credentials.getSecret(\"kv-cdw-nonprod\",\"un-peloton-api\")"
-						],
-						"outputs": [],
-						"execution_count": 7
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"from pyspark.sql import SparkSession\r\n",
-							"sc = SparkSession.builder.getOrCreate()\r\n",
-							"token_library = sc._jvm.com.microsoft.azure.synapse.tokenlibrary.TokenLibrary\r\n",
-							"\r\n",
-							"connection_string = token_library.GetSecret(\"kv-cdw-nonprod\", \"un-peloton-api\")"
-						],
-						"outputs": [],
-						"execution_count": 2
+						"execution_count": 9
 					}
 				]
 			},
 			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('workspaceName'), '/sparkcdwnonprod')]",
-			"type": "Microsoft.Synapse/workspaces/bigDataPools",
-			"apiVersion": "2019-06-01-preview",
-			"properties": {
-				"autoPause": {
-					"enabled": true,
-					"delayInMinutes": 15
-				},
-				"autoScale": {
-					"enabled": true,
-					"maxNodeCount": 10,
-					"minNodeCount": 3
-				},
-				"nodeCount": 10,
-				"nodeSize": "Small",
-				"nodeSizeFamily": "MemoryOptimized",
-				"sparkVersion": "3.3",
-				"isComputeIsolationEnabled": false,
-				"sessionLevelPackagesEnabled": true,
-				"annotations": []
-			},
-			"dependsOn": [],
-			"location": "eastus"
 		},
 		{
 			"name": "[concat(parameters('workspaceName'), '/sparknonprod')]",
@@ -488,6 +2236,160 @@
 			"dependsOn": [
 				"[concat(variables('workspaceId'), '/managedVirtualNetworks/default')]"
 			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/nb-openai-utilities')]",
+			"type": "Microsoft.Synapse/workspaces/notebooks",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"folder": {
+					"name": "Projects"
+				},
+				"nbformat": 4,
+				"nbformat_minor": 2,
+				"bigDataPool": {
+					"referenceName": "sparknonprod",
+					"type": "BigDataPoolReference"
+				},
+				"sessionProperties": {
+					"driverMemory": "28g",
+					"driverCores": 4,
+					"executorMemory": "28g",
+					"executorCores": 4,
+					"numExecutors": 2,
+					"conf": {
+						"spark.dynamicAllocation.enabled": "false",
+						"spark.dynamicAllocation.minExecutors": "2",
+						"spark.dynamicAllocation.maxExecutors": "2",
+						"spark.autotune.trackingId": "3a0e38a9-a0d8-4c7e-9ccd-0dbbf64bbac8"
+					}
+				},
+				"metadata": {
+					"saveOutput": true,
+					"enableDebugMode": false,
+					"kernelspec": {
+						"name": "synapse_pyspark",
+						"display_name": "Synapse PySpark"
+					},
+					"language_info": {
+						"name": "python"
+					},
+					"a365ComputeOptions": {
+						"id": "/subscriptions/b3d87898-3bc9-4864-ba33-06c31dea9d94/resourceGroups/rg-cdw-nonprod/providers/Microsoft.Synapse/workspaces/wkspc-cdw-nonprod/bigDataPools/sparknonprod",
+						"name": "sparknonprod",
+						"type": "Spark",
+						"endpoint": "https://wkspc-cdw-nonprod.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/sparknonprod",
+						"auth": {
+							"type": "AAD",
+							"authResource": "https://dev.azuresynapse.net"
+						},
+						"sparkVersion": "3.2",
+						"nodeCount": 10,
+						"cores": 4,
+						"memory": 28,
+						"automaticScaleJobs": false
+					},
+					"sessionKeepAliveTimeout": 30
+				},
+				"cells": [
+					{
+						"cell_type": "code",
+						"metadata": {},
+						"source": [
+							"import os\r\n",
+							"import requests\r\n",
+							"import json\r\n",
+							"\r\n",
+							"kvName = 'kv-de-nonprod'\r\n",
+							"lsKvName = 'lsadkvdenonprod'\r\n",
+							"\r\n",
+							"#Get Source Credentials from Key Vault\r\n",
+							"oaiKey = mssparkutils.credentials.getSecret(kvName,\"kv-secret-oai-svc-key\", lsKvName)\r\n",
+							"\r\n",
+							"api_key = oaiKey\r\n",
+							"base_url = \"https://oai-svc-nonprod.openai.azure.com/\"\r\n",
+							"deployment_name =\"text-davinci-002\"\r\n",
+							"\r\n",
+							"url = base_url + \"/openai/deployments/\" + deployment_name + \"/completions?api-version=2022-12-01\"\r\n",
+							"prompt = \"Once upon a time\"\r\n",
+							"payload = {        \r\n",
+							"    \"prompt\":prompt\r\n",
+							"    }\r\n",
+							"\r\n",
+							"r = requests.post(url, \r\n",
+							"      headers={\r\n",
+							"        \"api-key\": api_key,\r\n",
+							"        \"Content-Type\": \"application/json\"\r\n",
+							"      },\r\n",
+							"      json = payload\r\n",
+							"    )\r\n",
+							"\r\n",
+							"response = json.loads(r.text)\r\n",
+							"formatted_response = json.dumps(response, indent=4)\r\n",
+							"\r\n",
+							"print(formatted_response)"
+						],
+						"outputs": [],
+						"execution_count": 14
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"import os\r\n",
+							"import requests\r\n",
+							"import json\r\n",
+							"import openai\r\n",
+							"\r\n",
+							"kvName = 'kv-de-nonprod'\r\n",
+							"lsKvName = 'lsakvdenonprod'\r\n",
+							"\r\n",
+							"#Get Source Credentials from Key Vault\r\n",
+							"oaiKey = mssparkutils.credentials.getSecret(kvName,\"kv-secret-oai-key\", lsKvName)\r\n",
+							"\r\n",
+							"openai.api_key = oaiKey\r\n",
+							"openai.api_base =  \"https://oai-svc-nonprod.openai.azure.com/\" # your endpoint should look like the following https://YOUR_RESOURCE_NAME.openai.azure.com/\r\n",
+							"openai.api_type = 'azure'\r\n",
+							"openai.api_version = '2022-12-01' # this may change in the future\r\n",
+							"\r\n",
+							"deployment_name='text-davinci-002' #This will correspond to the custom name you chose for your deployment when you deployed a model. \r\n",
+							"\r\n",
+							"# Send a completion call to generate an answer\r\n",
+							"print('Sending a test completion job')\r\n",
+							"start_phrase = 'Write a tagline for an ice cream shop. '\r\n",
+							"response = openai.Completion.create(engine=deployment_name, prompt=start_phrase, max_tokens=10)\r\n",
+							"text = response['choices'][0]['text'].replace('\\n', '').replace(' .', '.').strip()\r\n",
+							"print(start_phrase+text)"
+						],
+						"outputs": [],
+						"execution_count": null
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/lsadkvdenonprod')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"annotations": [],
+				"type": "AzureKeyVault",
+				"typeProperties": {
+					"baseUrl": "[parameters('lsadkvdenonprod_properties_typeProperties_baseUrl')]"
+				}
+			},
+			"dependsOn": []
 		}
 	]
 }
