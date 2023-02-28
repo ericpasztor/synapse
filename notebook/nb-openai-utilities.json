@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "fd1db015-4903-44aa-af04-980730a40f44"
+				"spark.autotune.trackingId": "c86cae25-114e-4911-8374-61d9c4bc69ad"
 			}
 		},
 		"metadata": {
@@ -61,10 +61,10 @@
 					"kvName = 'kv-de-nonprod'\r\n",
 					"lsKvName = 'lsakvdenonprod'\r\n",
 					"\r\n",
-					"#Get Source Credentials from Key Vault\r\n",
-					"#unSrcApi = mssparkutils.credentials.getSecret(kvName,\"\", lsKvName)\r\n",
+					"Get Source Credentials from Key Vault\r\n",
+					"oaiKey = mssparkutils.credentials.getSecret(kvName,\"kv-secret-oai-key\", lsKvName)\r\n",
 					"\r\n",
-					"api_key = \"d10250e002004a2d90fc5da4f3ed48e1\"\r\n",
+					"api_key = oaiKey\r\n",
 					"base_url = \"https://oai-svc-nonprod.openai.azure.com/\"\r\n",
 					"deployment_name =\"text-davinci-002\"\r\n",
 					"\r\n",
