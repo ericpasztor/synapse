@@ -1,5 +1,5 @@
 {
-	"name": "nb-copy-historic-data",
+	"name": "nb-copy-historical-data",
 	"properties": {
 		"folder": {
 			"name": "FHIR"
@@ -16,7 +16,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "869a6345-ee79-4ea4-a404-855e8854a6a3"
+				"spark.autotune.trackingId": "29751e19-0b5d-4b5e-85e2-c644bd5b17d7"
 			}
 		},
 		"metadata": {
@@ -35,7 +35,30 @@
 			{
 				"cell_type": "code",
 				"source": [
-					""
+					"raw_location = \"abfss://raw@\" + StorageName + \".dfs.core.windows.net/fhir_ndjson/\"+ DatasetSize +\"/*/\"\r\n",
+					"processed_location = \"abfss://processed@\" + StorageName+ \".dfs.core.windows.net/fhir/\"+ DatasetSize +\"/\"\r\n",
+					"write_mode=\"overwrite\""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"Claim_df = spark.read.option(\"multiline\", \"false\").json(raw_location+\"Claim.ndjson\")\r\n",
+					"Claim_df.write.mode(write_mode).parquet(processed_location+\"Claim/\")\r\n",
+					"#display(Claim_df.limit(10))\r\n",
+					"#Claim_df.count()"
 				],
 				"execution_count": null
 			}
