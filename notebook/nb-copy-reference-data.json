@@ -16,7 +16,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "e6e7d491-6e8a-4995-a454-cf66d1cf63d8"
+				"spark.autotune.trackingId": "dbe6daff-868f-4313-82e9-a53cd61ae64a"
 			}
 		},
 		"metadata": {
@@ -35,7 +35,48 @@
 			{
 				"cell_type": "code",
 				"source": [
-					""
+					"adlsAccountName = \"adlsfhirnonprod\"\r\n",
+					"DatasetSize = \"30tb\""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"rawPath = \"abfss://raw@\" + adlsAccountName + \".dfs.core.windows.net/\"+ DatasetSize +\"/*/\"\r\n",
+					"bronzePath = \"abfss://bronze@\" + adlsAccountName + \".dfs.core.windows.net/reference_data/\"\r\n",
+					"writeMode = \"overwrite\"\r\n",
+					"partition"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"patientDF = spark.read.option(\"multiline\", \"false\").json(rawPath + \"Patient.ndjson\")\r\n",
+					"patientDF.write.mode(writeMode).parquet(bronzePath)"
 				],
 				"execution_count": null
 			}
