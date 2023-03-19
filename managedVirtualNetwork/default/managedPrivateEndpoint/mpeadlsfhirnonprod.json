@@ -1,0 +1,7 @@
+{
+	"name": "mpeadlsfhirnonprod",
+	"properties": {
+		"privateLinkResourceId": "/subscriptions/b3d87898-3bc9-4864-ba33-06c31dea9d94/resourceGroups/rg-synapse-hackathon/providers/Microsoft.Storage/storageAccounts/adlsfhirnonprod",
+		"groupId": "blob"
+	}
+}
