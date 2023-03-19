@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "10e4f823-4f60-4892-816f-58dc293faa51"
+				"spark.autotune.trackingId": "31665cc6-ddd4-4cf8-8f87-b903982abf96"
 			}
 		},
 		"metadata": {
@@ -54,10 +54,31 @@
 			{
 				"cell_type": "code",
 				"source": [
+					"import pyspark.sql.functions as F\r\n",
+					"from notebookutils import mssparkutils\r\n",
+					"from pyspark.sql import SparkSession\r\n",
+					"\r\n",
 					"adlsAccountName = \"adlsfhirnonprod\"\r\n",
-					"DatasetSize = \"30tb\""
+					"DatasetSize = \"30tb\"\r\n",
+					"\r\n",
+					"#mssparkutils.fs.help()\r\n",
+					"\r\n",
+					"# Azure storage access info\r\n",
+					"blob_account_name = 'adlsfhirnonprod' # replace with your blob name\r\n",
+					"blob_container_name = 'raw' # replace with your container name\r\n",
+					"blob_relative_path = '30tb' # replace with your relative folder path\r\n",
+					"linked_service_name = 'lsadlsfhirnonprod' # replace with your linked service name\r\n",
+					"\r\n",
+					"blob_sas_token = mssparkutils.credentials.getConnectionStringOrCreds(linked_service_name)\r\n",
+					"\r\n",
+					"# Allow SPARK to access from Blob remotely\r\n",
+					"\r\n",
+					"wasb_path = 'wasbs://%s@%s.blob.core.windows.net/%s' % (blob_container_name, blob_account_name, blob_relative_path)\r\n",
+					"\r\n",
+					"spark.conf.set('fs.azure.sas.%s.%s.blob.core.windows.net' % (blob_container_name, blob_account_name), blob_sas_token)\r\n",
+					"print('Remote blob path: ' + wasb_path)"
 				],
-				"execution_count": 3
+				"execution_count": 62
 			},
 			{
 				"cell_type": "code",
@@ -73,11 +94,50 @@
 					}
 				},
 				"source": [
-					"rawPath = \"abfss://raw@\" + adlsAccountName + \".dfs.core.windows.net/\"+ DatasetSize + \"/*/\"\r\n",
+					"rawPath = \"abfss://raw@\" + adlsAccountName + \".dfs.core.windows.net/\"+ DatasetSize + \"/*/Patient.ndjson\"\r\n",
 					"bronzePath = \"abfss://bronze@\" + adlsAccountName + \".dfs.core.windows.net/reference_data/\"\r\n",
 					"writeMode = \"overwrite\""
 				],
-				"execution_count": 6
+				"execution_count": 37
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"patientDF = spark.read.option(\"multiline\", \"false\").json(rawPath)\r\n",
+					"patientDF.write.mode(writeMode).save(bronzePath + \"Patient.ndjson\")"
+				],
+				"execution_count": 31
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"mssparkutils.fs.cp(rawPath, bronzePath, True)"
+				],
+				"execution_count": 38
 			},
 			{
 				"cell_type": "code",
@@ -93,10 +153,34 @@
 					}
 				},
 				"source": [
-					"patientDF = spark.read.option(\"multiline\", \"false\").json(rawPath + \"Patient.ndjson\")\r\n",
-					"patientDF.write.mode(writeMode).parquet(bronzePath)"
+					"directories = mssparkutils.fs.ls(wasb_path)\r\n",
+					"for directory in directories:\r\n",
+					"    for file in files:\r\n",
+					"        if file.name == 'Patient.ndjson':\r\n",
+					"            print(file.name, file.path, file.isDir, file.isFile)\r\n",
+					"            mssparkutils.fs.cp(file.path, bronzePath, True)"
 				],
-				"execution_count": 8
+				"execution_count": 69
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"df = spark.read.json(wasb_path + \"/*/Patient.ndjson\")\r\n",
+					"display(df)"
+				],
+				"execution_count": 64
 			}
 		]
 	}
