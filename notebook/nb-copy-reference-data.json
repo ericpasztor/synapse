@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "8db1d015-e315-41de-981e-0c98bf9e0927"
+				"spark.autotune.trackingId": "53857cbc-c8d0-46b2-a064-475eb709ddda"
 			}
 		},
 		"metadata": {
@@ -28,7 +28,7 @@
 			"enableDebugMode": false,
 			"kernelspec": {
 				"name": "synapse_pyspark",
-				"display_name": "python"
+				"display_name": "Synapse PySpark"
 			},
 			"language_info": {
 				"name": "python"
@@ -57,7 +57,7 @@
 					"adlsAccountName = \"adlsfhirnonprod\"\r\n",
 					"DatasetSize = \"30tb\""
 				],
-				"execution_count": null
+				"execution_count": 3
 			},
 			{
 				"cell_type": "code",
@@ -75,10 +75,9 @@
 				"source": [
 					"rawPath = \"abfss://raw@\" + adlsAccountName + \".dfs.core.windows.net/\"+ DatasetSize +\"/*/\"\r\n",
 					"bronzePath = \"abfss://bronze@\" + adlsAccountName + \".dfs.core.windows.net/reference_data/\"\r\n",
-					"writeMode = \"overwrite\"\r\n",
-					"partition"
+					"writeMode = \"overwrite\""
 				],
-				"execution_count": null
+				"execution_count": 4
 			},
 			{
 				"cell_type": "code",
@@ -97,7 +96,7 @@
 					"patientDF = spark.read.option(\"multiline\", \"false\").json(rawPath + \"Patient.ndjson\")\r\n",
 					"patientDF.write.mode(writeMode).parquet(bronzePath)"
 				],
-				"execution_count": null
+				"execution_count": 5
 			}
 		]
 	}
