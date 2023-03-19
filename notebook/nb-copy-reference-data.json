@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "53857cbc-c8d0-46b2-a064-475eb709ddda"
+				"spark.autotune.trackingId": "10e4f823-4f60-4892-816f-58dc293faa51"
 			}
 		},
 		"metadata": {
@@ -73,11 +73,11 @@
 					}
 				},
 				"source": [
-					"rawPath = \"abfss://raw@\" + adlsAccountName + \".dfs.core.windows.net/\"+ DatasetSize +\"/*/\"\r\n",
+					"rawPath = \"abfss://raw@\" + adlsAccountName + \".dfs.core.windows.net/\"+ DatasetSize + \"/*/\"\r\n",
 					"bronzePath = \"abfss://bronze@\" + adlsAccountName + \".dfs.core.windows.net/reference_data/\"\r\n",
 					"writeMode = \"overwrite\""
 				],
-				"execution_count": 4
+				"execution_count": 6
 			},
 			{
 				"cell_type": "code",
@@ -96,7 +96,7 @@
 					"patientDF = spark.read.option(\"multiline\", \"false\").json(rawPath + \"Patient.ndjson\")\r\n",
 					"patientDF.write.mode(writeMode).parquet(bronzePath)"
 				],
-				"execution_count": 5
+				"execution_count": 8
 			}
 		]
 	}
