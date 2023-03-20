@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "af66fe82-0cf7-45b5-b3c3-a6aed3667fcb"
+				"spark.autotune.trackingId": "68fc3b53-606b-42f8-82c7-9f2164e8902b"
 			}
 		},
 		"metadata": {
@@ -74,26 +74,20 @@
 					"print('Remote blob path: ' + wasb_path)\r\n",
 					"\r\n",
 					"bronzePath = \"abfss://bronze@\" + blob_account_name + \".dfs.core.windows.net/historic_data/Observation/\"\r\n",
-					"writeMode = \"overwrite\"\r\n",
 					"\r\n",
-					"df = spark.read.format(\"json\").option(\"recursiveFileLookup\", \"true\").load(wasb_path + \"/*/Observation.ndjson\")\r\n",
-					"df.select(F.input_file_name()).distinct()\r\n",
+					"df = spark.read.format(\"json\").load(wasb_path + \"/*/Observation.ndjson\")\r\n",
 					"\r\n",
-					"for row in df.rdd.collect():\r\n",
-					"  fileName = row['input_file_name()']\r\n",
-					"  df = spark.read.json(fileName)\r\n",
+					"df = df.withColumn(\"issued\", to_timestamp(col(\"issued\")))\r\n",
+					"df = df.filter(F.col(\"issued\") >= F.unix_timestamp(f.lit('2016-01-01 00:00:00')).cast('timestamp'))\r\n",
+					"df = df.filter(F.col(\"issued\") <= F.unix_timestamp(f.lit('2020-12-31 23:59:59')).cast('timestamp'))\r\n",
 					"\r\n",
-					"  df = df.withColumn(\"issued\", to_timestamp(col(\"issued\")))\r\n",
-					"  df = df.filter(F.col(\"issued\") >= F.unix_timestamp(f.lit('2016-01-01 00:00:00')).cast('timestamp'))\r\n",
-					"  df = df.filter(F.col(\"issued\") <= F.unix_timestamp(f.lit('2020-12-31 23:59:59')).cast('timestamp'))\r\n",
+					"df = df.withColumn(\"year\", date_format(col(\"issued\"), \"Y\")) \r\n",
+					"df = df.withColumn(\"month\", date_format(col(\"issued\"), \"M\"))\r\n",
+					"df = df.withColumn(\"day\", date_format(col(\"issued\"), \"d\"))\r\n",
 					"\r\n",
-					"  df = df.withColumn(\"year\", date_format(col(\"issued\"), \"Y\")) \r\n",
-					"  df = df.withColumn(\"month\", date_format(col(\"issued\"), \"M\"))\r\n",
-					"  df = df.withColumn(\"day\", date_format(col(\"issued\"), \"d\"))\r\n",
-					"\r\n",
-					"  df.write.partitionBy(\"year\").json(bronzePath)"
+					"df.write.partitionBy(\"year\").json(bronzePath)"
 				],
-				"execution_count": 100
+				"execution_count": 101
 			}
 		]
 	}
