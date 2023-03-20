@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "65fb878a-c45d-4b8b-91fe-bc778a16cab9"
+				"spark.autotune.trackingId": "a8a74962-0b07-440d-9dc5-d950a8428493"
 			}
 		},
 		"metadata": {
@@ -61,22 +61,28 @@
 					"adlsAccountName = \"adlsfhirnonprod\"\r\n",
 					"DatasetSize = \"30tb\"\r\n",
 					"\r\n",
-					"#mssparkutils.fs.help()\r\n",
-					"\r\n",
 					"# Azure storage access info\r\n",
-					"blob_account_name = 'adlsfhirnonprod' # replace with your blob name\r\n",
-					"blob_container_name = 'raw' # replace with your container name\r\n",
-					"blob_relative_path = '30tb' # replace with your relative folder path\r\n",
-					"linked_service_name = 'lsadlsfhirnonprod' # replace with your linked service name\r\n",
+					"blob_account_name = 'adlsfhirnonprod'\r\n",
+					"blob_container_name = 'raw'\r\n",
+					"blob_relative_path = '30tb'\r\n",
+					"linked_service_name = 'lsadlsfhirnonprod'\r\n",
 					"\r\n",
 					"blob_sas_token = mssparkutils.credentials.getConnectionStringOrCreds(linked_service_name)\r\n",
 					"\r\n",
-					"# Allow SPARK to access from Blob remotely\r\n",
+					"# Allow Spark to access Storage remotely\r\n",
 					"\r\n",
 					"wasb_path = 'wasbs://%s@%s.blob.core.windows.net/%s' % (blob_container_name, blob_account_name, blob_relative_path)\r\n",
 					"\r\n",
 					"spark.conf.set('fs.azure.sas.%s.%s.blob.core.windows.net' % (blob_container_name, blob_account_name), blob_sas_token)\r\n",
-					"print('Remote blob path: ' + wasb_path)"
+					"print('Remote blob path: ' + wasb_path)\r\n",
+					"\r\n",
+					"df = spark.read.format(\"json\").option(\"recursiveFileLookup\", \"true\").load(wasb_path + \"/*/Patient.ndjson\")\r\n",
+					"df.select(F.input_file_name()).distinct().show(false)\r\n",
+					"\r\n",
+					"for row in df.rdd.collect():\r\n",
+					"  fileName = row['input_file_name()']\r\n",
+					"  directoryName = row['input_file_name()'].strip(wasb_path).strip('/Patient.ndjson')\r\n",
+					"  mssparkutils.fs.cp(fileName, bronzePath + '/' + directoryName + '/Patient.ndjson', True)"
 				],
 				"execution_count": 71
 			},
