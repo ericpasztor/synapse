@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "31665cc6-ddd4-4cf8-8f87-b903982abf96"
+				"spark.autotune.trackingId": "47128855-6e2d-4022-8a8d-d37f1c730bbd"
 			}
 		},
 		"metadata": {
@@ -78,7 +78,7 @@
 					"spark.conf.set('fs.azure.sas.%s.%s.blob.core.windows.net' % (blob_container_name, blob_account_name), blob_sas_token)\r\n",
 					"print('Remote blob path: ' + wasb_path)"
 				],
-				"execution_count": 62
+				"execution_count": 71
 			},
 			{
 				"cell_type": "code",
@@ -98,7 +98,7 @@
 					"bronzePath = \"abfss://bronze@\" + adlsAccountName + \".dfs.core.windows.net/reference_data/\"\r\n",
 					"writeMode = \"overwrite\""
 				],
-				"execution_count": 37
+				"execution_count": 72
 			},
 			{
 				"cell_type": "code",
@@ -177,10 +177,36 @@
 					"collapsed": false
 				},
 				"source": [
-					"df = spark.read.json(wasb_path + \"/*/Patient.ndjson\")\r\n",
-					"display(df)"
+					"df = spark.read.format(\"json\").load(wasb_path + \"/*/Patient.ndjson\")\r\n",
+					"df = df.withColumn(\"filePath\", F.input_file_name())\r\n",
+					"df = df.withColumn(\"sourceFolder\", F.regexp_extract(\"filePath\", \"30tb/(.+)/Patient.ndjson\", 1))\r\n",
+					"df = df.drop('filePath')\r\n",
+					"\r\n",
+					"df.write.json(bronzePath + df.folderName + \"/\" + \"Patient.ndjson\")"
 				],
-				"execution_count": 64
+				"execution_count": 73
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"df = df.withColumn(\"filePath\", F.input_file_name())\r\n",
+					"df = df.withColumn(\"sourceFolder\", F.regexp_extract(\"filePath\", \"30tb/(.+)/Patient.ndjson\", 1))\r\n",
+					"df = df.drop('filePath')\r\n",
+					"\r\n",
+					"df.write.json(bronzePath + df.sourceFolder + \"/\" + \"Patient.ndjson\")"
+				],
+				"execution_count": 75
 			}
 		]
 	}
