@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "42ea86b0-50a7-4173-9a11-0c14fa8e8635"
+				"spark.autotune.trackingId": "d4325731-d84a-4868-870f-e111b9d05922"
 			}
 		},
 		"metadata": {
@@ -58,9 +58,6 @@
 					"from notebookutils import mssparkutils\r\n",
 					"from pyspark.sql import SparkSession\r\n",
 					"\r\n",
-					"adlsAccountName = \"adlsfhirnonprod\"\r\n",
-					"DatasetSize = \"30tb\"\r\n",
-					"\r\n",
 					"# Azure storage access info\r\n",
 					"blob_account_name = 'adlsfhirnonprod'\r\n",
 					"blob_container_name = 'raw'\r\n",
@@ -72,6 +69,8 @@
 					"# Allow Spark to access Storage remotely\r\n",
 					"\r\n",
 					"wasb_path = 'wasbs://%s@%s.blob.core.windows.net/%s' % (blob_container_name, blob_account_name, blob_relative_path)\r\n",
+					"rawPath = \"abfss://raw@\" + blob_account_name + \".dfs.core.windows.net/\"+ blob_relative_path + \"/*/Patient.ndjson\"\r\n",
+					"bronzePath = \"abfss://bronze@\" + blob_account_name + \".dfs.core.windows.net/reference_data/\"\r\n",
 					"\r\n",
 					"spark.conf.set('fs.azure.sas.%s.%s.blob.core.windows.net' % (blob_container_name, blob_account_name), blob_sas_token)\r\n",
 					"print('Remote blob path: ' + wasb_path)\r\n",
@@ -85,234 +84,6 @@
 					"  mssparkutils.fs.cp(fileName, bronzePath + '/' + directoryName + '/Patient.ndjson', True)"
 				],
 				"execution_count": 71
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					""
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"rawPath = \"abfss://raw@\" + adlsAccountName + \".dfs.core.windows.net/\"+ DatasetSize + \"/*/Patient.ndjson\"\r\n",
-					"bronzePath = \"abfss://bronze@\" + adlsAccountName + \".dfs.core.windows.net/reference_data/\"\r\n",
-					"writeMode = \"overwrite\""
-				],
-				"execution_count": 72
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"collapsed": false
-				},
-				"source": [
-					"patientDF = spark.read.option(\"multiline\", \"false\").json(rawPath)\r\n",
-					"patientDF.write.mode(writeMode).save(bronzePath + \"Patient.ndjson\")"
-				],
-				"execution_count": 31
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"collapsed": false
-				},
-				"source": [
-					"mssparkutils.fs.cp(rawPath, bronzePath, True)"
-				],
-				"execution_count": 38
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"directories = mssparkutils.fs.ls(wasb_path)\r\n",
-					"for directory in directories:\r\n",
-					"    for file in files:\r\n",
-					"        if file.name == 'Patient.ndjson':\r\n",
-					"            print(file.name, file.path, file.isDir, file.isFile)\r\n",
-					"            mssparkutils.fs.cp(file.path, bronzePath, True)"
-				],
-				"execution_count": 69
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"collapsed": false
-				},
-				"source": [
-					"df = spark.read.format(\"json\").load(wasb_path + \"/*/Patient.ndjson\")\r\n",
-					"df = df.withColumn(\"filePath\", F.input_file_name())\r\n",
-					"df = df.withColumn(\"sourceFolder\", F.regexp_extract(\"filePath\", \"30tb/(.+)/Patient.ndjson\", 1))\r\n",
-					"df = df.drop('filePath')\r\n",
-					"\r\n",
-					"df.write.json(bronzePath + df.folderName + \"/\" + \"Patient.ndjson\")"
-				],
-				"execution_count": 73
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"df = df.withColumn(\"filePath\", F.input_file_name())\r\n",
-					"df = df.withColumn(\"sourceFolder\", F.regexp_extract(\"filePath\", \"30tb/(.+)/Patient.ndjson\", 1))\r\n",
-					"df = df.drop('filePath')\r\n",
-					"\r\n",
-					"df.write.json(bronzePath + df.sourceFolder + \"/\" + \"Patient.ndjson\")"
-				],
-				"execution_count": 75
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"df = spark.read.format(\"json\").option(\"recursiveFileLookup\", \"true\").load(wasb_path + \"/*/Patient.ndjson\")\r\n",
-					"df.select(F.input_file_name()).distinct().show(false)"
-				],
-				"execution_count": 78
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"df = spark.read.format(\"json\").option(\"recursiveFileLookup\", \"true\").load(wasb_path + \"/*/Patient.ndjson\")\r\n",
-					"df = df.select(F.input_file_name()).distinct()\r\n",
-					"\r\n",
-					"for row in df.rdd.collect():\r\n",
-					"  print(row['input_file_name()'])\r\n",
-					"  fod(\"sourceFolder\", F.regexp_extract(row['input_file_name()'], \"30tb/(.+)/Patient.ndjson\", 1))\r\n",
-					"  mssparkutils.fs.cp(row['input_file_name()'], bronzePath, True)"
-				],
-				"execution_count": 92
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"mssparkutils.fs.cp(df['input_file_name()'], bronzePath, True)"
-				],
-				"execution_count": 89
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"for row in df.rdd.collect():\r\n",
-					"  fileName = row['input_file_name()']\r\n",
-					"  directoryName = row['input_file_name()'].strip(wasb_path).strip('/Patient.ndjson')\r\n",
-					"  mssparkutils.fs.cp(fileName, bronzePath + '/' + directoryName + '/Patient.ndjson', True)"
-				],
-				"execution_count": 98
 			}
 		]
 	}
