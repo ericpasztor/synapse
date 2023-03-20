@@ -7,20 +7,20 @@
 		"nbformat": 4,
 		"nbformat_minor": 2,
 		"bigDataPool": {
-			"referenceName": "sparknonprod",
+			"referenceName": "sparknonprodlg",
 			"type": "BigDataPoolReference"
 		},
 		"sessionProperties": {
-			"driverMemory": "28g",
-			"driverCores": 4,
-			"executorMemory": "28g",
-			"executorCores": 4,
+			"driverMemory": "112g",
+			"driverCores": 16,
+			"executorMemory": "112g",
+			"executorCores": 16,
 			"numExecutors": 2,
 			"conf": {
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "68fc3b53-606b-42f8-82c7-9f2164e8902b"
+				"spark.autotune.trackingId": "1ce2168c-8883-47ed-99eb-76ec41ddf4e6"
 			}
 		},
 		"metadata": {
@@ -34,18 +34,18 @@
 				"name": "python"
 			},
 			"a365ComputeOptions": {
-				"id": "/subscriptions/b3d87898-3bc9-4864-ba33-06c31dea9d94/resourceGroups/rg-cdw-nonprod/providers/Microsoft.Synapse/workspaces/wkspc-cdw-nonprod/bigDataPools/sparknonprod",
-				"name": "sparknonprod",
+				"id": "/subscriptions/b3d87898-3bc9-4864-ba33-06c31dea9d94/resourceGroups/rg-cdw-nonprod/providers/Microsoft.Synapse/workspaces/wkspc-cdw-nonprod/bigDataPools/sparknonprodlg",
+				"name": "sparknonprodlg",
 				"type": "Spark",
-				"endpoint": "https://wkspc-cdw-nonprod.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/sparknonprod",
+				"endpoint": "https://wkspc-cdw-nonprod.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/sparknonprodlg",
 				"auth": {
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
 				},
-				"sparkVersion": "3.2",
+				"sparkVersion": "3.3",
 				"nodeCount": 10,
-				"cores": 4,
-				"memory": 28,
+				"cores": 16,
+				"memory": 112,
 				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
