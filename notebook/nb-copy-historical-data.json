@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "0940aaad-4560-4f4c-9699-ccf1b14a13ce"
+				"spark.autotune.trackingId": "835e22c0-8154-41d9-98aa-80492e7108aa"
 			}
 		},
 		"metadata": {
@@ -58,9 +58,6 @@
 					"from notebookutils import mssparkutils\r\n",
 					"from pyspark.sql import SparkSession\r\n",
 					"\r\n",
-					"adlsAccountName = \"adlsfhirnonprod\"\r\n",
-					"datasetSize = \"30tb\"\r\n",
-					"\r\n",
 					"# Azure storage access info\r\n",
 					"blob_account_name = 'adlsfhirnonprod'\r\n",
 					"blob_container_name = 'raw'\r\n",
@@ -76,12 +73,11 @@
 					"spark.conf.set('fs.azure.sas.%s.%s.blob.core.windows.net' % (blob_container_name, blob_account_name), blob_sas_token)\r\n",
 					"print('Remote blob path: ' + wasb_path)\r\n",
 					"\r\n",
-					"rawPath = \"abfss://raw@\" + adlsAccountName + \".dfs.core.windows.net/\"+ datasetSize + \"/*/Observation.ndjson\"\r\n",
-					"bronzePath = \"abfss://bronze@\" + adlsAccountName + \".dfs.core.windows.net/historic_data/Observation/\"\r\n",
+					"bronzePath = \"abfss://bronze@\" + blob_account_name + \".dfs.core.windows.net/historic_data/Observation/\"\r\n",
 					"writeMode = \"overwrite\"\r\n",
 					"\r\n",
 					"df = spark.read.format(\"json\").option(\"recursiveFileLookup\", \"true\").load(wasb_path + \"/*/Observation.ndjson\")\r\n",
-					"df.select(F.input_file_name()).distinct().show(false)\r\n",
+					"df.select(F.input_file_name()).distinct()\r\n",
 					"\r\n",
 					"for row in df.rdd.collect():\r\n",
 					"  fileName = row['input_file_name()']\r\n",
