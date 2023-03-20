@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "a8a74962-0b07-440d-9dc5-d950a8428493"
+				"spark.autotune.trackingId": "42ea86b0-50a7-4173-9a11-0c14fa8e8635"
 			}
 		},
 		"metadata": {
@@ -85,6 +85,24 @@
 					"  mssparkutils.fs.cp(fileName, bronzePath + '/' + directoryName + '/Patient.ndjson', True)"
 				],
 				"execution_count": 71
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					""
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
