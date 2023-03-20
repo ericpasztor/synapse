@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "835e22c0-8154-41d9-98aa-80492e7108aa"
+				"spark.autotune.trackingId": "af66fe82-0cf7-45b5-b3c3-a6aed3667fcb"
 			}
 		},
 		"metadata": {
@@ -87,13 +87,13 @@
 					"  df = df.filter(F.col(\"issued\") >= F.unix_timestamp(f.lit('2016-01-01 00:00:00')).cast('timestamp'))\r\n",
 					"  df = df.filter(F.col(\"issued\") <= F.unix_timestamp(f.lit('2020-12-31 23:59:59')).cast('timestamp'))\r\n",
 					"\r\n",
-					"  df = df.withColumn(\"year\", date_format(col(\"issued\"), \"Y\") \r\n",
-					"  df = df.withColumn(\"month\", date_format(col(\"issued\"), \"M\")\r\n",
-					"  df = df.withColumn(\"day\", date_format(col(\"issued\"), \"d\")\r\n",
+					"  df = df.withColumn(\"year\", date_format(col(\"issued\"), \"Y\")) \r\n",
+					"  df = df.withColumn(\"month\", date_format(col(\"issued\"), \"M\"))\r\n",
+					"  df = df.withColumn(\"day\", date_format(col(\"issued\"), \"d\"))\r\n",
 					"\r\n",
 					"  df.write.partitionBy(\"year\").json(bronzePath)"
 				],
-				"execution_count": null
+				"execution_count": 100
 			}
 		]
 	}
