@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "90c4cb16-bbc5-43e0-b2e7-af4594cab8ce"
+				"spark.autotune.trackingId": "05c0013d-73e3-401a-bb26-3cd4b1f203af"
 			}
 		},
 		"metadata": {
@@ -95,10 +95,10 @@
 					"df = spark.read.option(\"mutiline\", \"true\").schema(observationSchema).json(wasb_path + \"/*/Observation.ndjson\");\r\n",
 					"df = df.withColumn(\"year\", F.year(F.to_date(F.col(\"issued\"))))\r\n",
 					"\r\n",
-					"df = df.filter(F.col(\"year\") >= 2016)\r\n",
-					"df = df.filter(F.col(\"year\") <= 2020)\r\n",
+					"df = df.filter(F.col(\"year\") >= 2016 && F.col(\"year\") <= 2020)\r\n",
+					"df = df.repartition(\"year\")\r\n",
 					"\r\n",
-					"df.write.mode(\"overwrite\").partitionBy(\"year\").json(bronzePath)"
+					"#df.write.mode(\"overwrite\").partitionBy(\"year\").json(bronzePath)"
 				],
 				"execution_count": 29
 			},
