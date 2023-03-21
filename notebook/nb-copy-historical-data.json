@@ -7,20 +7,20 @@
 		"nbformat": 4,
 		"nbformat_minor": 2,
 		"bigDataPool": {
-			"referenceName": "sparknonprod",
+			"referenceName": "sparknonprodlg",
 			"type": "BigDataPoolReference"
 		},
 		"sessionProperties": {
-			"driverMemory": "28g",
-			"driverCores": 4,
-			"executorMemory": "28g",
-			"executorCores": 4,
+			"driverMemory": "112g",
+			"driverCores": 16,
+			"executorMemory": "112g",
+			"executorCores": 16,
 			"numExecutors": 2,
 			"conf": {
-				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.enabled": "true",
 				"spark.dynamicAllocation.minExecutors": "2",
-				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "05c0013d-73e3-401a-bb26-3cd4b1f203af"
+				"spark.dynamicAllocation.maxExecutors": "6",
+				"spark.autotune.trackingId": "9cf6f32d-4b4b-4300-b2c6-f00355dc11d3"
 			}
 		},
 		"metadata": {
@@ -34,18 +34,18 @@
 				"name": "python"
 			},
 			"a365ComputeOptions": {
-				"id": "/subscriptions/b3d87898-3bc9-4864-ba33-06c31dea9d94/resourceGroups/rg-cdw-nonprod/providers/Microsoft.Synapse/workspaces/wkspc-cdw-nonprod/bigDataPools/sparknonprod",
-				"name": "sparknonprod",
+				"id": "/subscriptions/b3d87898-3bc9-4864-ba33-06c31dea9d94/resourceGroups/rg-cdw-nonprod/providers/Microsoft.Synapse/workspaces/wkspc-cdw-nonprod/bigDataPools/sparknonprodlg",
+				"name": "sparknonprodlg",
 				"type": "Spark",
-				"endpoint": "https://wkspc-cdw-nonprod.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/sparknonprod",
+				"endpoint": "https://wkspc-cdw-nonprod.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/sparknonprodlg",
 				"auth": {
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
 				},
-				"sparkVersion": "3.2",
+				"sparkVersion": "3.3",
 				"nodeCount": 10,
-				"cores": 4,
-				"memory": 28,
+				"cores": 16,
+				"memory": 112,
 				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
@@ -77,7 +77,7 @@
 					"# Azure storage access info\r\n",
 					"blob_account_name = 'adlsfhirnonprod'\r\n",
 					"blob_container_name = 'raw'\r\n",
-					"blob_relative_path = '1tb'\r\n",
+					"blob_relative_path = '30tb'\r\n",
 					"linked_service_name = 'lsadlsfhirnonprod'\r\n",
 					"\r\n",
 					"blob_sas_token = mssparkutils.credentials.getConnectionStringOrCreds(linked_service_name)\r\n",
@@ -89,18 +89,19 @@
 					"\r\n",
 					"bronzePath = \"abfss://bronze@\" + blob_account_name + \".dfs.core.windows.net/historic_data/\" + blob_relative_path + \"/Observation/\"\r\n",
 					"\r\n",
-					"observationSchemaFile = wasb_path + \"/00682d8b-8947-4237-958c-65dccfdf61e8/Observation.ndjson\"\r\n",
+					"observationSchemaFile = wasb_path + \"/000047ca-00c7-492b-bf65-740805144cd2/Observation.ndjson\"\r\n",
 					"observationSchema = spark.read.option(\"mutiline\", \"true\").json(observationSchemaFile).schema\r\n",
 					"\r\n",
 					"df = spark.read.option(\"mutiline\", \"true\").schema(observationSchema).json(wasb_path + \"/*/Observation.ndjson\");\r\n",
 					"df = df.withColumn(\"year\", F.year(F.to_date(F.col(\"issued\"))))\r\n",
 					"\r\n",
-					"df = df.filter(F.col(\"year\") >= 2016 && F.col(\"year\") <= 2020)\r\n",
+					"df = df.filter(F.col(\"year\") >= 2016)\r\n",
+					"df = df.filter(F.col(\"year\") <= 2020)\r\n",
 					"df = df.repartition(\"year\")\r\n",
 					"\r\n",
-					"#df.write.mode(\"overwrite\").partitionBy(\"year\").json(bronzePath)"
+					"df.write.mode(\"overwrite\").partitionBy(\"year\").json(bronzePath)"
 				],
-				"execution_count": 29
+				"execution_count": 1
 			},
 			{
 				"cell_type": "markdown",
