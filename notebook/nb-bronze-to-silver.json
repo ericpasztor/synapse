@@ -16,7 +16,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "0d54e1e7-22ff-421e-83c3-dc54cf7b6620"
+				"spark.autotune.trackingId": "ab6ee76c-f5f6-49e1-9b8f-b6c991ad0566"
 			}
 		},
 		"metadata": {
@@ -34,6 +34,51 @@
 		"cells": [
 			{
 				"cell_type": "code",
+				"source": [
+					"from pyspark.sql.types import StructType\r\n",
+					"from pyspark.sql.functions import col\r\n",
+					"\r\n",
+					"\r\n",
+					"# return a list of all (possibly nested) fields to select, within a given schema\r\n",
+					"def flatten(schema, prefix: str = \"\"):\r\n",
+					"    # return a list of sub-items to select, within a given field\r\n",
+					"    def field_items(field):\r\n",
+					"        name = f'{prefix}.{field.name}' if prefix else field.name\r\n",
+					"        if type(field.dataType) == StructType:\r\n",
+					"            return flatten(field.dataType, name)\r\n",
+					"        else:\r\n",
+					"            return [col(name)]\r\n",
+					"    return [item for field in schema.fields for item in field_items(field)]\r\n",
+					"\r\n",
+					"\r\n",
+					"df = spark.read.json(path)\r\n",
+					"\r\n",
+					"print('===== df =====')\r\n",
+					"df.printSchema()\r\n",
+					"\r\n",
+					"flattened = flatten(df.schema)\r\n",
+					"print('flattened =', flatten(df.schema))\r\n",
+					"print('===== df2 =====')\r\n",
+					"df2 = df.select(*flattened)\r\n",
+					"df2.printSchema()\r\n",
+					"\r\n",
+					"df2.show()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
 				"source": [
 					""
 				],
