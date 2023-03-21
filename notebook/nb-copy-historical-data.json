@@ -7,20 +7,20 @@
 		"nbformat": 4,
 		"nbformat_minor": 2,
 		"bigDataPool": {
-			"referenceName": "sparknonprodlg",
+			"referenceName": "sparknonprod",
 			"type": "BigDataPoolReference"
 		},
 		"sessionProperties": {
-			"driverMemory": "112g",
-			"driverCores": 16,
-			"executorMemory": "112g",
-			"executorCores": 16,
-			"numExecutors": 9,
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
 			"conf": {
 				"spark.dynamicAllocation.enabled": "false",
-				"spark.dynamicAllocation.minExecutors": "9",
-				"spark.dynamicAllocation.maxExecutors": "9",
-				"spark.autotune.trackingId": "cf05ace2-29bb-44b1-909b-35aa627d9991"
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "25e8961d-1f3c-441d-984f-37368d97cdda"
 			}
 		},
 		"metadata": {
@@ -34,18 +34,18 @@
 				"name": "python"
 			},
 			"a365ComputeOptions": {
-				"id": "/subscriptions/b3d87898-3bc9-4864-ba33-06c31dea9d94/resourceGroups/rg-cdw-nonprod/providers/Microsoft.Synapse/workspaces/wkspc-cdw-nonprod/bigDataPools/sparknonprodlg",
-				"name": "sparknonprodlg",
+				"id": "/subscriptions/b3d87898-3bc9-4864-ba33-06c31dea9d94/resourceGroups/rg-cdw-nonprod/providers/Microsoft.Synapse/workspaces/wkspc-cdw-nonprod/bigDataPools/sparknonprod",
+				"name": "sparknonprod",
 				"type": "Spark",
-				"endpoint": "https://wkspc-cdw-nonprod.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/sparknonprodlg",
+				"endpoint": "https://wkspc-cdw-nonprod.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/sparknonprod",
 				"auth": {
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
 				},
-				"sparkVersion": "3.3",
+				"sparkVersion": "3.2",
 				"nodeCount": 10,
-				"cores": 16,
-				"memory": 112,
+				"cores": 4,
+				"memory": 28,
 				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
@@ -57,11 +57,14 @@
 					"import pyspark.sql.functions as F\r\n",
 					"from notebookutils import mssparkutils\r\n",
 					"from pyspark.sql import SparkSession\r\n",
+					"from pyspark.sql.types import StructType, StructField, StringType, IntegerType\r\n",
+					"#from pyspark.sql.functions import col, udf, to_timestamp\r\n",
+					"#from pyspark.sql.functions import to_date, year, month, dayofmonth, col;\r\n",
 					"\r\n",
 					"# Azure storage access info\r\n",
 					"blob_account_name = 'adlsfhirnonprod'\r\n",
 					"blob_container_name = 'raw'\r\n",
-					"blob_relative_path = '30tb'\r\n",
+					"blob_relative_path = '1tb'\r\n",
 					"linked_service_name = 'lsadlsfhirnonprod'\r\n",
 					"\r\n",
 					"blob_sas_token = mssparkutils.credentials.getConnectionStringOrCreds(linked_service_name)\r\n",
@@ -69,25 +72,53 @@
 					"# Allow Spark to access Storage remotely\r\n",
 					"\r\n",
 					"wasb_path = 'wasbs://%s@%s.blob.core.windows.net/%s' % (blob_container_name, blob_account_name, blob_relative_path)\r\n",
-					"\r\n",
 					"spark.conf.set('fs.azure.sas.%s.%s.blob.core.windows.net' % (blob_container_name, blob_account_name), blob_sas_token)\r\n",
-					"print('Remote blob path: ' + wasb_path)\r\n",
 					"\r\n",
-					"bronzePath = \"abfss://bronze@\" + blob_account_name + \".dfs.core.windows.net/historic_data/Observation/\"\r\n",
+					"bronzePath = \"abfss://bronze@\" + blob_account_name + \".dfs.core.windows.net/historic_data/\" + blob_relative_path + \"/Observation/\"\r\n",
 					"\r\n",
-					"df = spark.read.format(\"json\").load(wasb_path + \"/*/Observation.ndjson\")\r\n",
+					"observationSchemaFile = wasb_path + \"/00682d8b-8947-4237-958c-65dccfdf61e8/Observation.ndjson\"\r\n",
+					"observationSchema = spark.read.option(\"mutiline\", \"true\").json(observationSchemaFile).schema\r\n",
 					"\r\n",
-					"df = df.withColumn(\"issued\", to_timestamp(col(\"issued\")))\r\n",
-					"df = df.filter(F.col(\"issued\") >= F.unix_timestamp(f.lit('2016-01-01 00:00:00')).cast('timestamp'))\r\n",
-					"df = df.filter(F.col(\"issued\") <= F.unix_timestamp(f.lit('2020-12-31 23:59:59')).cast('timestamp'))\r\n",
+					"df = spark.read.option(\"mutiline\", \"true\").schema(observationSchema).json(wasb_path + \"/*/Observation.ndjson\");\r\n",
 					"\r\n",
-					"df = df.withColumn(\"year\", date_format(col(\"issued\"), \"Y\")) \r\n",
-					"df = df.withColumn(\"month\", date_format(col(\"issued\"), \"M\"))\r\n",
-					"df = df.withColumn(\"day\", date_format(col(\"issued\"), \"d\"))\r\n",
+					"#df.printSchema()\r\n",
 					"\r\n",
-					"df.write.partitionBy(\"year\").json(bronzePath)"
+					"df = df.filter(F.to_date(F.col(\"issued\")) >= F.lit('2016-01-01'))\r\n",
+					"df = df.filter(F.to_date(F.col(\"issued\")) <= F.lit('2020-12-31'))\r\n",
+					"\r\n",
+					"#df = df.withColumn(\"issued\", F.to_timestamp(col(\"issued\")))\r\n",
+					"#df = df.filter(F.col(\"issued\") >= F.unix_timestamp(F.lit('2016-01-01 00:00:00')).cast('timestamp'))\r\n",
+					"#df = df.filter(F.col(\"issued\") <= F.unix_timestamp(F.lit('2020-12-31 23:59:59')).cast('timestamp'))\r\n",
+					"\r\n",
+					"#df = df.withColumn(\"year\", F.date_format(F.to_date(col(\"issued\")), \"y\")) \r\n",
+					"#df = df.withColumn(\"month\", F.date_format(F.to_date(col(\"issued\")), \"M\"))\r\n",
+					"#df = df.withColumn(\"day\", F.date_format(F.to_date(col(\"issued\")), \"d\"))\r\n",
+					"\r\n",
+					"df.write.mode(\"overwrite\").partitionBy(year(F.to_date(F.col(\"issued\")))).parquet(bronzePath)"
 				],
-				"execution_count": 1
+				"execution_count": 13
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"df = df.filter(F.to_date(F.col(\"issued\")) >= F.lit('2016-01-01'))\r\n",
+					"df = df.filter(F.to_date(F.col(\"issued\")) <= F.lit('2020-12-31'))\r\n",
+					"\r\n",
+					"display(df.limit(1000))"
+				],
+				"execution_count": 21
 			}
 		]
 	}
