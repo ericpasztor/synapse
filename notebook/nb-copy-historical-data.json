@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "25e8961d-1f3c-441d-984f-37368d97cdda"
+				"spark.autotune.trackingId": "6f103a64-2b4c-4f9d-a4d4-e031a591c08b"
 			}
 		},
 		"metadata": {
@@ -80,23 +80,14 @@
 					"observationSchema = spark.read.option(\"mutiline\", \"true\").json(observationSchemaFile).schema\r\n",
 					"\r\n",
 					"df = spark.read.option(\"mutiline\", \"true\").schema(observationSchema).json(wasb_path + \"/*/Observation.ndjson\");\r\n",
+					"df = df.withColumn(\"year\", F.year(F.to_date(F.col(\"issued\"))))\r\n",
 					"\r\n",
-					"#df.printSchema()\r\n",
+					"df = df.filter(F.col(\"year\") >= 2016)\r\n",
+					"df = df.filter(F.col(\"year\") <= 2020)\r\n",
 					"\r\n",
-					"df = df.filter(F.to_date(F.col(\"issued\")) >= F.lit('2016-01-01'))\r\n",
-					"df = df.filter(F.to_date(F.col(\"issued\")) <= F.lit('2020-12-31'))\r\n",
-					"\r\n",
-					"#df = df.withColumn(\"issued\", F.to_timestamp(col(\"issued\")))\r\n",
-					"#df = df.filter(F.col(\"issued\") >= F.unix_timestamp(F.lit('2016-01-01 00:00:00')).cast('timestamp'))\r\n",
-					"#df = df.filter(F.col(\"issued\") <= F.unix_timestamp(F.lit('2020-12-31 23:59:59')).cast('timestamp'))\r\n",
-					"\r\n",
-					"#df = df.withColumn(\"year\", F.date_format(F.to_date(col(\"issued\")), \"y\")) \r\n",
-					"#df = df.withColumn(\"month\", F.date_format(F.to_date(col(\"issued\")), \"M\"))\r\n",
-					"#df = df.withColumn(\"day\", F.date_format(F.to_date(col(\"issued\")), \"d\"))\r\n",
-					"\r\n",
-					"df.write.mode(\"overwrite\").partitionBy(year(F.to_date(F.col(\"issued\")))).parquet(bronzePath)"
+					"df.write.mode(\"overwrite\").partitionBy(\"year\").json(bronzePath)"
 				],
-				"execution_count": 13
+				"execution_count": 29
 			},
 			{
 				"cell_type": "code",
@@ -109,16 +100,23 @@
 						"transient": {
 							"deleting": false
 						}
-					},
-					"collapsed": false
+					}
 				},
 				"source": [
-					"df = df.filter(F.to_date(F.col(\"issued\")) >= F.lit('2016-01-01'))\r\n",
-					"df = df.filter(F.to_date(F.col(\"issued\")) <= F.lit('2020-12-31'))\r\n",
+					"bronzePath = \"abfss://bronze@\" + blob_account_name + \".dfs.core.windows.net/historic_data/\" + blob_relative_path + \"/Claim/\"\r\n",
 					"\r\n",
-					"display(df.limit(1000))"
+					"claimSchemaFile = wasb_path + \"/00682d8b-8947-4237-958c-65dccfdf61e8/Claim.ndjson\"\r\n",
+					"claimSchema = spark.read.option(\"mutiline\", \"true\").json(claimSchemaFile).schema\r\n",
+					"\r\n",
+					"df = spark.read.option(\"mutiline\", \"true\").schema(claimSchema).json(wasb_path + \"/*/Claim.ndjson\");\r\n",
+					"df = df.withColumn(\"year\", F.year(F.to_date(F.col(\"created\"))))\r\n",
+					"\r\n",
+					"df = df.filter(F.col(\"year\") >= 2016)\r\n",
+					"df = df.filter(F.col(\"year\") <= 2020)\r\n",
+					"\r\n",
+					"df.write.mode(\"overwrite\").partitionBy(\"year\").json(bronzePath)"
 				],
-				"execution_count": 21
+				"execution_count": 30
 			}
 		]
 	}
