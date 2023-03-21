@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "6f103a64-2b4c-4f9d-a4d4-e031a591c08b"
+				"spark.autotune.trackingId": "90c4cb16-bbc5-43e0-b2e7-af4594cab8ce"
 			}
 		},
 		"metadata": {
@@ -51,6 +51,19 @@
 			"sessionKeepAliveTimeout": 30
 		},
 		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## **Historical Observation Ingestion** (2016-2020)"
+				]
+			},
 			{
 				"cell_type": "code",
 				"source": [
@@ -90,6 +103,19 @@
 				"execution_count": 29
 			},
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## **Historical Claim Ingestion** (2016-2020)"
+				]
+			},
+			{
 				"cell_type": "code",
 				"metadata": {
 					"jupyter": {
@@ -117,6 +143,92 @@
 					"df.write.mode(\"overwrite\").partitionBy(\"year\").json(bronzePath)"
 				],
 				"execution_count": 30
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## **Incremental Observation Ingestion** (2021)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"bronzePath = \"abfss://bronze@\" + blob_account_name + \".dfs.core.windows.net/incremental_data/\" + blob_relative_path + \"/Observation/\"\r\n",
+					"\r\n",
+					"observationSchemaFile = wasb_path + \"/00682d8b-8947-4237-958c-65dccfdf61e8/Observation.ndjson\"\r\n",
+					"observationSchema = spark.read.option(\"mutiline\", \"true\").json(observationSchemaFile).schema\r\n",
+					"\r\n",
+					"df = spark.read.option(\"mutiline\", \"true\").schema(observationSchema).json(wasb_path + \"/*/Observation.ndjson\");\r\n",
+					"df = df.withColumn(\"year\", F.year(F.to_date(F.col(\"issued\"))))\r\n",
+					"df = df.withColumn(\"month\", F.date_format(F.to_date(F.col(\"issued\")), 'MM'))\r\n",
+					"df = df.withColumn(\"day\", F.date_format(F.to_date(F.col(\"issued\")), 'dd'))\r\n",
+					"\r\n",
+					"df = df.filter(F.col(\"year\") == 2021)\r\n",
+					"\r\n",
+					"df.write.mode(\"overwrite\").partitionBy(\"year\", \"month\", \"day\").json(bronzePath)"
+				],
+				"execution_count": 34
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## **Incremental Claim Ingestion** (2021)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"bronzePath = \"abfss://bronze@\" + blob_account_name + \".dfs.core.windows.net/incremental_data/\" + blob_relative_path + \"/Claim/\"\r\n",
+					"\r\n",
+					"claimSchemaFile = wasb_path + \"/00682d8b-8947-4237-958c-65dccfdf61e8/Claim.ndjson\"\r\n",
+					"claimSchema = spark.read.option(\"mutiline\", \"true\").json(claimSchemaFile).schema\r\n",
+					"\r\n",
+					"df = spark.read.option(\"mutiline\", \"true\").schema(claimSchema).json(wasb_path + \"/*/Claim.ndjson\");\r\n",
+					"df = df.withColumn(\"year\", F.year(F.to_date(F.col(\"created\"))))\r\n",
+					"df = df.withColumn(\"month\", F.date_format(F.to_date(F.col(\"created\")), 'MM'))\r\n",
+					"df = df.withColumn(\"day\", F.date_format(F.to_date(F.col(\"created\")), 'dd'))\r\n",
+					"\r\n",
+					"df = df.filter(F.col(\"year\") == 2021)\r\n",
+					"\r\n",
+					"df.write.mode(\"overwrite\").partitionBy(\"year\", \"month\", \"day\").json(bronzePath)"
+				],
+				"execution_count": null
 			}
 		]
 	}
