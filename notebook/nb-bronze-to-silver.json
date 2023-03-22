@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "241e69d3-c46d-4242-af4e-0ff31db72e7c"
+				"spark.autotune.trackingId": "4c7d1064-d810-4c5b-8166-bf9430803970"
 			}
 		},
 		"metadata": {
@@ -62,7 +62,7 @@
 					"# Azure storage access info\r\n",
 					"blob_account_name = 'adlsfhirnonprod'\r\n",
 					"blob_container_name = 'bronze'\r\n",
-					"blob_relative_path = '1tb'\r\n",
+					"blob_relative_path = '30tb'\r\n",
 					"linked_service_name = 'lsadlsfhirnonprod'\r\n",
 					"\r\n",
 					"blob_sas_token = mssparkutils.credentials.getConnectionStringOrCreds(linked_service_name)\r\n",
@@ -73,7 +73,7 @@
 					"spark.conf.set('fs.azure.sas.%s.%s.blob.core.windows.net' % (blob_container_name, blob_account_name), blob_sas_token)\r\n",
 					""
 				],
-				"execution_count": 27
+				"execution_count": 31
 			},
 			{
 				"cell_type": "markdown",
@@ -125,7 +125,7 @@
 					"\r\n",
 					"df.write.format(\"delta\").mode(\"overwrite\").save(silverPath + \"/Observation_main/\")"
 				],
-				"execution_count": 28
+				"execution_count": 32
 			}
 		]
 	}
