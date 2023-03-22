@@ -7,20 +7,20 @@
 		"nbformat": 4,
 		"nbformat_minor": 2,
 		"bigDataPool": {
-			"referenceName": "sparknonprodlg",
+			"referenceName": "sparknonprodmd",
 			"type": "BigDataPoolReference"
 		},
 		"sessionProperties": {
-			"driverMemory": "112g",
-			"driverCores": 16,
-			"executorMemory": "112g",
-			"executorCores": 16,
+			"driverMemory": "56g",
+			"driverCores": 8,
+			"executorMemory": "56g",
+			"executorCores": 8,
 			"numExecutors": 2,
 			"conf": {
 				"spark.dynamicAllocation.enabled": "true",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "6",
-				"spark.autotune.trackingId": "e3532b51-434e-45ec-b9e3-064d39f61809"
+				"spark.autotune.trackingId": "f290f9c3-57de-4ba0-8ef2-35529a6cb2b9"
 			}
 		},
 		"metadata": {
@@ -34,18 +34,18 @@
 				"name": "python"
 			},
 			"a365ComputeOptions": {
-				"id": "/subscriptions/b3d87898-3bc9-4864-ba33-06c31dea9d94/resourceGroups/rg-cdw-nonprod/providers/Microsoft.Synapse/workspaces/wkspc-cdw-nonprod/bigDataPools/sparknonprodlg",
-				"name": "sparknonprodlg",
+				"id": "/subscriptions/b3d87898-3bc9-4864-ba33-06c31dea9d94/resourceGroups/rg-cdw-nonprod/providers/Microsoft.Synapse/workspaces/wkspc-cdw-nonprod/bigDataPools/sparknonprodmd",
+				"name": "sparknonprodmd",
 				"type": "Spark",
-				"endpoint": "https://wkspc-cdw-nonprod.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/sparknonprodlg",
+				"endpoint": "https://wkspc-cdw-nonprod.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/sparknonprodmd",
 				"auth": {
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
 				},
 				"sparkVersion": "3.3",
 				"nodeCount": 10,
-				"cores": 16,
-				"memory": 112,
+				"cores": 8,
+				"memory": 56,
 				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
@@ -69,7 +69,7 @@
 					"wasbPath = 'wasbs://%s@%s.blob.core.windows.net/%s' % (containerName, accountName, relativePath)\r\n",
 					"spark.conf.set('fs.azure.sas.%s.%s.blob.core.windows.net' % (containerName, accountName), sasToken)"
 				],
-				"execution_count": 40
+				"execution_count": 2
 			},
 			{
 				"cell_type": "markdown",
