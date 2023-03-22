@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "true",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "6",
-				"spark.autotune.trackingId": "f65a6810-830a-4c9b-9c7b-e53cdcf7bd32"
+				"spark.autotune.trackingId": "66eac2c7-9832-4932-a503-1ea3c0ff3814"
 			}
 		},
 		"metadata": {
@@ -127,6 +127,19 @@
 				"execution_count": 3
 			},
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## **Observation Category (History)**"
+				]
+			},
+			{
 				"cell_type": "code",
 				"metadata": {
 					"jupyter": {
@@ -141,10 +154,34 @@
 					"collapsed": false
 				},
 				"source": [
-					"silverPath = \"abfss://silver@\" + blob_account_name + \".dfs.core.windows.net/1tb/\"\r\n",
+					"bronzePath = \"abfss://bronze@\" + accountName + \".dfs.core.windows.net/historic_data/\" + relativePath + \"/Observation/\"\r\n",
+					"silverPath = \"abfss://silver@\" + accountName + \".dfs.core.windows.net/\" + relativePath\r\n",
 					"\r\n",
-					"df = spark.read.format(\"delta\").load(silverPath + \"/Observation_main/year=2016/month=01/\")\r\n",
-					"display(df)"
+					"observationSchemaFile = bronzePath + \"year=2016/\"\r\n",
+					"observationSchema = spark.read.option(\"mutiline\", \"true\").json(observationSchemaFile).schema\r\n",
+					"\r\n",
+					"df = spark.read.option(\"mutiline\", \"true\").schema(observationSchema).json(bronzePath)\r\n",
+					"df = df.withColumn(\"year\", year(to_date(col(\"issued\"))))\r\n",
+					"df = df.withColumn(\"month\", date_format(to_date(col(\"issued\")), 'MM'))\r\n",
+					"df = df.withColumn(\"day\", date_format(to_date(col(\"issued\")), 'dd'))\r\n",
+					"\r\n",
+					"df = df.withColumn(\"subject\",regexp_replace(\"subject.reference\",\"Patient/\",\"\")).withColumn(\"encounter\",regexp_replace(\"encounter.reference\",\"Encounter/\",\"\"))\r\n",
+					"df = df.withColumnRenamed(\"id\",\"observation_id\")\r\n",
+					"df = df.withColumnRenamed(\"subject\",\"patient_id_reference\")\r\n",
+					"df = df.withColumnRenamed(\"encounter\",\"encounter_id_reference\")\r\n",
+					"\r\n",
+					"df = df.select(\r\n",
+					"    \"Observation_id\",\r\n",
+					"    explode(df.category)).toDF(*(\"observation_id\",\"category\"))\r\n",
+					"\r\n",
+					"df = df.select(\r\n",
+					"    \"observation_id\",\r\n",
+					"    explode(df.category.coding)).toDF(*(\"observation_id\",\"category\"))    \r\n",
+					"\r\n",
+					"df = df.select(\"observation_id\",\"category.*\",\"year\",\"month\",\"day\").toDF(*(\r\n",
+					"    \"observation_id\",\"category_code\",\"category_display\",\"category_system\",\"year\",\"month\",\"day\"))\r\n",
+					"\r\n",
+					"df.write.format(\"delta\").mode(\"overwrite\").partitionBy(\"year\", \"month\").save(silverPath + \"/Observation_category/\")"
 				],
 				"execution_count": 39
 			}
