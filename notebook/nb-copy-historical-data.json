@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "true",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "6",
-				"spark.autotune.trackingId": "d19b3b02-8337-4221-8e5a-d84cbfdf68e7"
+				"spark.autotune.trackingId": "b455e7c4-21c1-48e9-ade1-d0c40ba014cc"
 			}
 		},
 		"metadata": {
@@ -97,11 +97,10 @@
 					"\r\n",
 					"df = df.filter(F.col(\"year\") >= 2016)\r\n",
 					"df = df.filter(F.col(\"year\") <= 2020)\r\n",
-					"df = df.repartition(\"year\")\r\n",
 					"\r\n",
 					"df.write.mode(\"overwrite\").partitionBy(\"year\").json(bronzePath)"
 				],
-				"execution_count": 1
+				"execution_count": 3
 			},
 			{
 				"cell_type": "markdown",
@@ -140,6 +139,7 @@
 					"\r\n",
 					"df = df.filter(F.col(\"year\") >= 2016)\r\n",
 					"df = df.filter(F.col(\"year\") <= 2020)\r\n",
+					"df = df.repartition(\"year\")\r\n",
 					"\r\n",
 					"df.write.mode(\"overwrite\").partitionBy(\"year\").json(bronzePath)"
 				],
