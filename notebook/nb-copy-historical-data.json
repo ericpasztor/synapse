@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "true",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "6",
-				"spark.autotune.trackingId": "b455e7c4-21c1-48e9-ade1-d0c40ba014cc"
+				"spark.autotune.trackingId": "9cdcc6b8-e03f-4cc0-9d0c-bd37b97a641a"
 			}
 		},
 		"metadata": {
@@ -131,7 +131,7 @@
 				"source": [
 					"bronzePath = \"abfss://bronze@\" + blob_account_name + \".dfs.core.windows.net/historic_data/\" + blob_relative_path + \"/Claim/\"\r\n",
 					"\r\n",
-					"claimSchemaFile = wasb_path + \"/00682d8b-8947-4237-958c-65dccfdf61e8/Claim.ndjson\"\r\n",
+					"claimSchemaFile = wasb_path + \"/000047ca-00c7-492b-bf65-740805144cd2/Claim.ndjson\"\r\n",
 					"claimSchema = spark.read.option(\"mutiline\", \"true\").json(claimSchemaFile).schema\r\n",
 					"\r\n",
 					"df = spark.read.option(\"mutiline\", \"true\").schema(claimSchema).json(wasb_path + \"/*/Claim.ndjson\");\r\n",
@@ -139,11 +139,10 @@
 					"\r\n",
 					"df = df.filter(F.col(\"year\") >= 2016)\r\n",
 					"df = df.filter(F.col(\"year\") <= 2020)\r\n",
-					"df = df.repartition(\"year\")\r\n",
 					"\r\n",
 					"df.write.mode(\"overwrite\").partitionBy(\"year\").json(bronzePath)"
 				],
-				"execution_count": 30
+				"execution_count": 4
 			},
 			{
 				"cell_type": "markdown",
@@ -174,7 +173,7 @@
 				"source": [
 					"bronzePath = \"abfss://bronze@\" + blob_account_name + \".dfs.core.windows.net/incremental_data/\" + blob_relative_path + \"/Observation/\"\r\n",
 					"\r\n",
-					"observationSchemaFile = wasb_path + \"/00682d8b-8947-4237-958c-65dccfdf61e8/Observation.ndjson\"\r\n",
+					"observationSchemaFile = wasb_path + \"/000047ca-00c7-492b-bf65-740805144cd2/Observation.ndjson\"\r\n",
 					"observationSchema = spark.read.option(\"mutiline\", \"true\").json(observationSchemaFile).schema\r\n",
 					"\r\n",
 					"df = spark.read.option(\"mutiline\", \"true\").schema(observationSchema).json(wasb_path + \"/*/Observation.ndjson\");\r\n",
@@ -183,10 +182,11 @@
 					"df = df.withColumn(\"day\", F.date_format(F.to_date(F.col(\"issued\")), 'dd'))\r\n",
 					"\r\n",
 					"df = df.filter(F.col(\"year\") == 2021)\r\n",
+					"df = df.repartition(\"year\", \"month\")\r\n",
 					"\r\n",
 					"df.write.mode(\"overwrite\").partitionBy(\"year\", \"month\", \"day\").json(bronzePath)"
 				],
-				"execution_count": 34
+				"execution_count": 5
 			},
 			{
 				"cell_type": "markdown",
@@ -217,7 +217,7 @@
 				"source": [
 					"bronzePath = \"abfss://bronze@\" + blob_account_name + \".dfs.core.windows.net/incremental_data/\" + blob_relative_path + \"/Claim/\"\r\n",
 					"\r\n",
-					"claimSchemaFile = wasb_path + \"/00682d8b-8947-4237-958c-65dccfdf61e8/Claim.ndjson\"\r\n",
+					"claimSchemaFile = wasb_path + \"/000047ca-00c7-492b-bf65-740805144cd2/Claim.ndjson\"\r\n",
 					"claimSchema = spark.read.option(\"mutiline\", \"true\").json(claimSchemaFile).schema\r\n",
 					"\r\n",
 					"df = spark.read.option(\"mutiline\", \"true\").schema(claimSchema).json(wasb_path + \"/*/Claim.ndjson\");\r\n",
