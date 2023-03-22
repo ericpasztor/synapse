@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "4c7d1064-d810-4c5b-8166-bf9430803970"
+				"spark.autotune.trackingId": "df5c03fe-9999-46b4-aaec-6ae222ccb39d"
 			}
 		},
 		"metadata": {
@@ -55,14 +55,14 @@
 				"cell_type": "code",
 				"source": [
 					"from pyspark.sql.types import StructType\r\n",
-					"from pyspark.sql.functions import col, regexp_replace, explode\r\n",
+					"from pyspark.sql.functions import col, regexp_replace, explode, date_format, to_date, year\r\n",
 					"from notebookutils import mssparkutils\r\n",
 					"from pyspark.sql import SparkSession\r\n",
 					"\r\n",
 					"# Azure storage access info\r\n",
 					"blob_account_name = 'adlsfhirnonprod'\r\n",
 					"blob_container_name = 'bronze'\r\n",
-					"blob_relative_path = '30tb'\r\n",
+					"blob_relative_path = '1tb'\r\n",
 					"linked_service_name = 'lsadlsfhirnonprod'\r\n",
 					"\r\n",
 					"blob_sas_token = mssparkutils.credentials.getConnectionStringOrCreds(linked_service_name)\r\n",
@@ -73,7 +73,7 @@
 					"spark.conf.set('fs.azure.sas.%s.%s.blob.core.windows.net' % (blob_container_name, blob_account_name), blob_sas_token)\r\n",
 					""
 				],
-				"execution_count": 31
+				"execution_count": 33
 			},
 			{
 				"cell_type": "markdown",
@@ -110,6 +110,8 @@
 					"observationSchema = spark.read.option(\"mutiline\", \"true\").json(observationSchemaFile).schema\r\n",
 					"\r\n",
 					"df = spark.read.option(\"mutiline\", \"true\").schema(observationSchema).json(bronzePath)\r\n",
+					"df = df.withColumn(\"month\", date_format(to_date(col(\"issued\")), 'MM'))\r\n",
+					"df = df.withColumn(\"day\", date_format(to_date(col(\"issued\")), 'dd'))\r\n",
 					"\r\n",
 					"df = df.withColumn(\"subject\",regexp_replace(\"subject.reference\",\"Patient/\",\"\")).withColumn(\"encounter\",regexp_replace(\"encounter.reference\",\"Encounter/\",\"\"))\r\n",
 					"df = df.withColumnRenamed(\"id\",\"observation_id\")\r\n",
@@ -118,14 +120,35 @@
 					"\r\n",
 					"df = df.select(\r\n",
 					"    \"observation_id\",\"resourceType\",\"issued\",\"status\",\"patient_id_reference\",\"encounter_id_reference\",\"effectiveDateTime\",\r\n",
-					"    \"valueQuantity.code\",\"valueQuantity.system\",\"valueQuantity.unit\",\"valueQuantity.value\",\"valueString\").toDF(*(\r\n",
+					"    \"valueQuantity.code\",\"valueQuantity.system\",\"valueQuantity.unit\",\"valueQuantity.value\",\"valueString\",\"year\",\"month\",\"day\").toDF(*(\r\n",
 					"    \"observation_id\",\"resourceType\",\"issued\",\"status\",\"patient_id_reference\",\"encounter_id_reference\",\"effectiveDateTime\",\r\n",
-					"    \"valueQuantity_code\",\"valueQuantity_system\",\"valueQuantity_unit\",\"valueQuantity_value\",\"valueString\"\r\n",
+					"    \"valueQuantity_code\",\"valueQuantity_system\",\"valueQuantity_unit\",\"valueQuantity_value\",\"valueString\",\"year\",\"month\",\"day\"\r\n",
 					"    ))\r\n",
 					"\r\n",
-					"df.write.format(\"delta\").mode(\"overwrite\").save(silverPath + \"/Observation_main/\")"
+					"df.write.format(\"delta\").mode(\"overwrite\").partitionBy(\"year\", \"month\").save(silverPath + \"/Observation_main/\")"
 				],
-				"execution_count": 32
+				"execution_count": 35
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"silverPath = \"abfss://silver@\" + blob_account_name + \".dfs.core.windows.net/1tb/\"\r\n",
+					"\r\n",
+					"df = spark.read.format(\"delta\").load(silverPath + \"/Observation_main\")\r\n",
+					"display(df)"
+				],
+				"execution_count": null
 			}
 		]
 	}

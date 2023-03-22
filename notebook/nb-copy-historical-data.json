@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "true",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "6",
-				"spark.autotune.trackingId": "9cdcc6b8-e03f-4cc0-9d0c-bd37b97a641a"
+				"spark.autotune.trackingId": "c36d0ddd-5e1d-4143-9282-ad959c99664d"
 			}
 		},
 		"metadata": {
@@ -71,8 +71,6 @@
 					"from notebookutils import mssparkutils\r\n",
 					"from pyspark.sql import SparkSession\r\n",
 					"from pyspark.sql.types import StructType, StructField, StringType, IntegerType\r\n",
-					"#from pyspark.sql.functions import col, udf, to_timestamp\r\n",
-					"#from pyspark.sql.functions import to_date, year, month, dayofmonth, col;\r\n",
 					"\r\n",
 					"# Azure storage access info\r\n",
 					"blob_account_name = 'adlsfhirnonprod'\r\n",
@@ -226,6 +224,7 @@
 					"df = df.withColumn(\"day\", F.date_format(F.to_date(F.col(\"created\")), 'dd'))\r\n",
 					"\r\n",
 					"df = df.filter(F.col(\"year\") == 2021)\r\n",
+					"df = df.repartition(\"year\", \"month\")\r\n",
 					"\r\n",
 					"df.write.mode(\"overwrite\").partitionBy(\"year\", \"month\", \"day\").json(bronzePath)"
 				],
