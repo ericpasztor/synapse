@@ -1,5 +1,5 @@
 {
-	"name": "nb-copy-historical-data",
+	"name": "nb-raw-to-bronze",
 	"properties": {
 		"folder": {
 			"name": "FHIR"
@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "true",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "6",
-				"spark.autotune.trackingId": "77eeeac2-b0f5-4a95-b953-62f36691c69a"
+				"spark.autotune.trackingId": "2435e50b-5033-4dfe-9708-01a2ef0243ff"
 			}
 		},
 		"metadata": {
