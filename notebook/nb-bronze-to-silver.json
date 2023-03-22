@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "df5c03fe-9999-46b4-aaec-6ae222ccb39d"
+				"spark.autotune.trackingId": "1fb77e20-b853-4964-b06c-75fda542c84d"
 			}
 		},
 		"metadata": {
@@ -62,7 +62,7 @@
 					"# Azure storage access info\r\n",
 					"blob_account_name = 'adlsfhirnonprod'\r\n",
 					"blob_container_name = 'bronze'\r\n",
-					"blob_relative_path = '1tb'\r\n",
+					"blob_relative_path = '30tb'\r\n",
 					"linked_service_name = 'lsadlsfhirnonprod'\r\n",
 					"\r\n",
 					"blob_sas_token = mssparkutils.credentials.getConnectionStringOrCreds(linked_service_name)\r\n",
@@ -73,7 +73,7 @@
 					"spark.conf.set('fs.azure.sas.%s.%s.blob.core.windows.net' % (blob_container_name, blob_account_name), blob_sas_token)\r\n",
 					""
 				],
-				"execution_count": 33
+				"execution_count": 40
 			},
 			{
 				"cell_type": "markdown",
@@ -103,13 +103,14 @@
 					"collapsed": false
 				},
 				"source": [
-					"bronzePath = \"abfss://bronze@\" + blob_account_name + \".dfs.core.windows.net/historic_data/\" + blob_relative_path + \"/Observation/year=2016/\"\r\n",
+					"bronzePath = \"abfss://bronze@\" + blob_account_name + \".dfs.core.windows.net/historic_data/\" + blob_relative_path + \"/Observation/\"\r\n",
 					"silverPath = \"abfss://silver@\" + blob_account_name + \".dfs.core.windows.net/\" + blob_relative_path\r\n",
 					"\r\n",
-					"observationSchemaFile = bronzePath\r\n",
+					"observationSchemaFile = bronzePath + \"year=2016/\"\r\n",
 					"observationSchema = spark.read.option(\"mutiline\", \"true\").json(observationSchemaFile).schema\r\n",
 					"\r\n",
 					"df = spark.read.option(\"mutiline\", \"true\").schema(observationSchema).json(bronzePath)\r\n",
+					"df = df.withColumn(\"year\", year(to_date(col(\"issued\"))))\r\n",
 					"df = df.withColumn(\"month\", date_format(to_date(col(\"issued\")), 'MM'))\r\n",
 					"df = df.withColumn(\"day\", date_format(to_date(col(\"issued\")), 'dd'))\r\n",
 					"\r\n",
@@ -127,7 +128,7 @@
 					"\r\n",
 					"df.write.format(\"delta\").mode(\"overwrite\").partitionBy(\"year\", \"month\").save(silverPath + \"/Observation_main/\")"
 				],
-				"execution_count": 35
+				"execution_count": 41
 			},
 			{
 				"cell_type": "code",
@@ -140,15 +141,16 @@
 						"transient": {
 							"deleting": false
 						}
-					}
+					},
+					"collapsed": false
 				},
 				"source": [
 					"silverPath = \"abfss://silver@\" + blob_account_name + \".dfs.core.windows.net/1tb/\"\r\n",
 					"\r\n",
-					"df = spark.read.format(\"delta\").load(silverPath + \"/Observation_main\")\r\n",
+					"df = spark.read.format(\"delta\").load(silverPath + \"/Observation_main/year=2016/month=01/\")\r\n",
 					"display(df)"
 				],
-				"execution_count": null
+				"execution_count": 39
 			}
 		]
 	}
