@@ -7,21 +7,21 @@
 		"nbformat": 4,
 		"nbformat_minor": 2,
 		"bigDataPool": {
-			"referenceName": "sparknonprodlg",
+			"referenceName": "sparknonprodmd",
 			"type": "BigDataPoolReference"
 		},
 		"sessionProperties": {
-			"driverMemory": "112g",
-			"driverCores": 16,
-			"executorMemory": "112g",
-			"executorCores": 16,
+			"driverMemory": "56g",
+			"driverCores": 8,
+			"executorMemory": "56g",
+			"executorCores": 8,
 			"numExecutors": 2,
 			"runAsWorkspaceSystemIdentity": false,
 			"conf": {
-				"spark.dynamicAllocation.enabled": "true",
+				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
-				"spark.dynamicAllocation.maxExecutors": "6",
-				"spark.autotune.trackingId": "3c2d593f-ab37-4b27-845f-99030831c3cd"
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "8a290574-cdcd-4ed2-832c-1e95bed6b44b"
 			}
 		},
 		"metadata": {
@@ -35,18 +35,18 @@
 				"name": "python"
 			},
 			"a365ComputeOptions": {
-				"id": "/subscriptions/b3d87898-3bc9-4864-ba33-06c31dea9d94/resourceGroups/rg-cdw-nonprod/providers/Microsoft.Synapse/workspaces/wkspc-cdw-nonprod/bigDataPools/sparknonprodlg",
-				"name": "sparknonprodlg",
+				"id": "/subscriptions/b3d87898-3bc9-4864-ba33-06c31dea9d94/resourceGroups/rg-cdw-nonprod/providers/Microsoft.Synapse/workspaces/wkspc-cdw-nonprod/bigDataPools/sparknonprodmd",
+				"name": "sparknonprodmd",
 				"type": "Spark",
-				"endpoint": "https://wkspc-cdw-nonprod.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/sparknonprodlg",
+				"endpoint": "https://wkspc-cdw-nonprod.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/sparknonprodmd",
 				"auth": {
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
 				},
 				"sparkVersion": "3.3",
 				"nodeCount": 10,
-				"cores": 16,
-				"memory": 112,
+				"cores": 8,
+				"memory": 56,
 				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
@@ -331,6 +331,84 @@
 				"source": [
 					"## Patient Address, Extension, Identifier (History)****"
 				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"df = spark.read.json(\"abfss://bronze@\" + accountName + \".dfs.core.windows.net/historic_data/\" + relativePath + \"/Patient/\")\r\n",
+					"\r\n",
+					"df.select(\"id\",\"summaries.period.year\",\"summaries.rainfall\").display()\r\n",
+					"df = df.withColumn(\"year_rainfall\", F.arrays_zip(\"year\", \"rainfall\"))\r\n",
+					"\r\n",
+					"df.withColumn(\"year_rainfall\", explode(\"year_rainfall\")).select(\r\n",
+					"    \"stationCode\", col(\"year_rainfall.rainfall\").alias(\"Rainfall\"), col(\"year_rainfall.year\").alias(\"Year\"))\r\n",
+					"\r\n",
+					"out = (df.select(\"stationCode\", explode(arrays_zip(*[\"extension.valueAddress.year\",\"summaries.rainfall\"])))\r\n",
+					".select(\"stationCode\", col(\"col\")['0'].alias(\"year\"), col(\"col\")['1'].alias(\"rainfall\")))\r\n",
+					"\r\n",
+					"out.display(20, False)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"id\r\n",
+					"extension.url\r\n",
+					"extension.valueAddress.city\r\n",
+					"extension.valueAddress.country\r\n",
+					"extension.valueAddress.state\r\n",
+					"extension.valueDecimal\r\n",
+					"extension.valueString"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"patientDf = spark.read.json(\"abfss://bronze@\" + accountName + \".dfs.core.windows.net/historic_data/\" + relativePath + \"/Patient/\")\r\n",
+					"\r\n",
+					"patientIdDf = patientDf.select(\"id\",\"address.city\",\"address.country\", explode(patientDf.extension), \"address.postalCode\",\"address.state\")\r\n",
+					"\r\n",
+					"patientIdDf = patientIdDf.toDF(*(\"id\", \"extension\"))\r\n",
+					"\r\n",
+					"patientIdDf = patientIdDf.select(\"id\",\"extension.diagnosisReference.reference\",\"diagnosis.sequence\",\"year\",\"month\",\"day\").toDF(*(  \r\n",
+					"    \"patient_id\",\"diagnosis_reference\",\"diagnosis_sequence\",\"year\",\"month\",\"day\"))"
+				],
+				"execution_count": null
 			}
 		]
 	}
