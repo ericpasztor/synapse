@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "true",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "6",
-				"spark.autotune.trackingId": "3855e603-4b21-448d-9653-13996fc23fca"
+				"spark.autotune.trackingId": "2397664b-4513-4e16-92bb-f561e85979f3"
 			}
 		},
 		"metadata": {
@@ -316,6 +316,37 @@
 					"\r\n",
 					"procedureDf = procedureDf.repartition(\"year\", \"month\")\r\n",
 					"procedureDf.write.format(\"delta\").mode(\"overwrite\").partitionBy(\"year\", \"month\").save(silverPath + \"/Claim_procedure/\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Patient Address, Extension, Identifier (History)****"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					""
 				],
 				"execution_count": null
 			}
