@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "true",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "6",
-				"spark.autotune.trackingId": "d634444c-164a-46e0-98b7-89a7b3f81e1a"
+				"spark.autotune.trackingId": "d8c125d2-6ebc-48c1-b467-80c53a26590e"
 			}
 		},
 		"metadata": {
@@ -70,7 +70,7 @@
 					"wasbPath = 'wasbs://%s@%s.blob.core.windows.net/%s' % (containerName, accountName, relativePath)\r\n",
 					"spark.conf.set('fs.azure.sas.%s.%s.blob.core.windows.net' % (containerName, accountName), sasToken)"
 				],
-				"execution_count": 2
+				"execution_count": 1
 			},
 			{
 				"cell_type": "markdown",
@@ -219,7 +219,7 @@
 					"codeDf.write.format(\"delta\").mode(\"overwrite\").partitionBy(\"year\", \"month\").save(silverPath + \"/Observation_valueCodeableConcept/\")\r\n",
 					""
 				],
-				"execution_count": 39
+				"execution_count": null
 			}
 		]
 	}
