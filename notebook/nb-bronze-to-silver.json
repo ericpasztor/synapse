@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "true",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "6",
-				"spark.autotune.trackingId": "d8c125d2-6ebc-48c1-b467-80c53a26590e"
+				"spark.autotune.trackingId": "9ece6108-2398-463c-89ad-d10baa8ecb04"
 			}
 		},
 		"metadata": {
@@ -62,7 +62,7 @@
 					"\r\n",
 					"accountName = 'adlsfhirnonprod'\r\n",
 					"containerName = 'bronze'\r\n",
-					"relativePath = '1tb'\r\n",
+					"relativePath = '30tb'\r\n",
 					"linkedServiceName = 'lsadlsfhirnonprod'\r\n",
 					"\r\n",
 					"sasToken = mssparkutils.credentials.getConnectionStringOrCreds(linkedServiceName)\r\n",
@@ -70,7 +70,7 @@
 					"wasbPath = 'wasbs://%s@%s.blob.core.windows.net/%s' % (containerName, accountName, relativePath)\r\n",
 					"spark.conf.set('fs.azure.sas.%s.%s.blob.core.windows.net' % (containerName, accountName), sasToken)"
 				],
-				"execution_count": 1
+				"execution_count": 13
 			},
 			{
 				"cell_type": "markdown",
@@ -174,50 +174,135 @@
 					"#Category\r\n",
 					"categoryDf = observationDf.select(\r\n",
 					"    \"observation_id\",\r\n",
-					"    explode(observationDf.category)).toDF(*(\"observation_id\",\"category\"))\r\n",
+					"    explode(observationDf.category),\"year\",\"month\",\"day\").toDF(*(\"observation_id\",\"category\",\"year\",\"month\",\"day\"))\r\n",
 					"\r\n",
 					"categoryDf = categoryDf.select(\r\n",
 					"    \"observation_id\",\r\n",
-					"    explode(categoryDf.category.coding)).toDF(*(\"observation_id\",\"category\"))    \r\n",
+					"    explode(categoryDf.category.coding),\"year\",\"month\",\"day\").toDF(*(\"observation_id\",\"category\",\"year\",\"month\",\"day\"))    \r\n",
 					"\r\n",
 					"categoryDf = categoryDf.select(\"observation_id\",\"category.*\",\"year\",\"month\",\"day\").toDF(*(\r\n",
 					"    \"observation_id\",\"category_code\",\"category_display\",\"category_system\",\"year\",\"month\",\"day\"))\r\n",
 					"\r\n",
+					"categoryDf = categoryDf.repartition(\"year\", \"month\")\r\n",
 					"categoryDf.write.format(\"delta\").mode(\"overwrite\").partitionBy(\"year\", \"month\").save(silverPath + \"/Observation_category/\")\r\n",
 					"\r\n",
 					"#Code\r\n",
 					"codeDf = observationDf.select(\r\n",
-					"    \"observation_id\",\"code.text\",explode(observationDf.code.coding)).toDF(*(\"observation_id\",\"text\",\"coding\"))\r\n",
+					"    \"observation_id\",\"code.text\",explode(observationDf.code.coding),\"year\",\"month\",\"day\").toDF(*(\"observation_id\",\"text\",\"coding\",\"year\",\"month\",\"day\"))\r\n",
 					"\r\n",
 					"codeDf = codeDf.select(\"observation_id\",\"text\",\"coding.*\",\"year\",\"month\",\"day\").toDF(*(\r\n",
 					"    \"Observation_id\",\"code_text\",\"coding_code\",\"coding_display\",\"coding_system\",\"year\",\"month\",\"day\"))\r\n",
 					"\r\n",
+					"codeDf = codeDf.repartition(\"year\", \"month\")\r\n",
 					"codeDf.write.format(\"delta\").mode(\"overwrite\").partitionBy(\"year\", \"month\").save(silverPath + \"/Observation_code/\")\r\n",
 					"\r\n",
 					"#Component\r\n",
 					"componentDf = observationDf.select(\r\n",
-					"    \"Observation_id\",explode(observationDf.component))\r\n",
+					"    \"Observation_id\",explode(observationDf.component),\"year\",\"month\",\"day\")\r\n",
 					"\r\n",
 					"componentDf = componentDf.select(\"observation_id\",explode_outer(componentDf.col.code.coding),\"col.code.text\",\r\n",
-					"    \"col.valueQuantity.code\",\"col.valueQuantity.system\",\"col.valueQuantity.unit\",\"col.valueQuantity.value\").toDF(*(\"observation_id\",\"component_code\",\"component_text\",\r\n",
-					"    \"component_valueQuantity_code\",\"component_valueQuantity_system\",\"component_valueQuantity_unit\",\"component_valueQuantity_value\"))   \r\n",
+					"    \"col.valueQuantity.code\",\"col.valueQuantity.system\",\"col.valueQuantity.unit\",\"col.valueQuantity.value\",\"year\",\"month\",\"day\").toDF(*(\"observation_id\",\"component_code\",\"component_text\",\r\n",
+					"    \"component_valueQuantity_code\",\"component_valueQuantity_system\",\"component_valueQuantity_unit\",\"component_valueQuantity_value\",\"year\",\"month\",\"day\"))   \r\n",
 					"\r\n",
 					"componentDf = componentDf.select(\"observation_id\",\"component_code.*\",\"component_text\",\r\n",
 					"    \"component_valueQuantity_code\",\"component_valueQuantity_system\",\"component_valueQuantity_unit\",\"component_valueQuantity_value\",\"year\",\"month\",\"day\").toDF(*(\"observation_id\",\"component_code\",\r\n",
 					"    \"component_display\",\"component_system\",\"component_text\",\r\n",
 					"    \"component_valueQuantity_code\",\"component_valueQuantity_system\",\"component_valueQuantity_unit\",\"component_valueQuantity_value\",\"year\",\"month\",\"day\"))\r\n",
 					"\r\n",
-					"codeDf.write.format(\"delta\").mode(\"overwrite\").partitionBy(\"year\", \"month\").save(silverPath + \"/Observation_component/\")\r\n",
+					"componentDf = componentDf.repartition(\"year\", \"month\")\r\n",
+					"componentDf.write.format(\"delta\").mode(\"overwrite\").partitionBy(\"year\", \"month\").save(silverPath + \"/Observation_component/\")\r\n",
 					"\r\n",
 					"#Observation Value Codeable Concept\r\n",
 					"valueDf = observationDf.select(\r\n",
-					"    \"observation_id\",explode(observationDf.valueCodeableConcept.coding),\"valueCodeableConcept.text\").toDF(*(\"observation_id\",\"coding\",\"valueCodeableConcept_text\"))\r\n",
+					"    \"observation_id\",explode(observationDf.valueCodeableConcept.coding),\"valueCodeableConcept.text\",\"year\",\"month\",\"day\").toDF(*(\"observation_id\",\"coding\",\"valueCodeableConcept_text\",\"year\",\"month\",\"day\"))\r\n",
 					"\r\n",
-					"valueDf = valueDf.select(\"observation_id\",\"coding.*\",\"valueCodeableConcept_text\").toDF(*(\"observation_id\",\r\n",
-					"    \"valueCodeableConcept_code\", \"valueCodeableConcept_display\",\"valueCodeableConcept_system\",\"valueCodeableConcept_text\"))\r\n",
+					"valueDf = valueDf.select(\"observation_id\",\"coding.*\",\"valueCodeableConcept_text\",\"year\",\"month\",\"day\").toDF(*(\"observation_id\",\r\n",
+					"    \"valueCodeableConcept_code\", \"valueCodeableConcept_display\",\"valueCodeableConcept_system\",\"valueCodeableConcept_text\",\"year\",\"month\",\"day\"))\r\n",
 					"\r\n",
-					"codeDf.write.format(\"delta\").mode(\"overwrite\").partitionBy(\"year\", \"month\").save(silverPath + \"/Observation_valueCodeableConcept/\")\r\n",
+					"valueDf = valueDf.repartition(\"year\", \"month\")\r\n",
+					"valueDf.write.format(\"delta\").mode(\"overwrite\").partitionBy(\"year\", \"month\").save(silverPath + \"/Observation_valueCodeableConcept/\")\r\n",
 					""
+				],
+				"execution_count": 14
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## **Claim Main, Diagnosis, Insurance, Procedure (History)**"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"bronzePath = \"abfss://bronze@\" + accountName + \".dfs.core.windows.net/historic_data/\" + relativePath + \"/Claim/\"\r\n",
+					"silverPath = \"abfss://silver@\" + accountName + \".dfs.core.windows.net/\" + relativePath\r\n",
+					"\r\n",
+					"claimSchemaFile = bronzePath + \"year=2016/\"\r\n",
+					"claimSchema = spark.read.option(\"mutiline\", \"true\").json(claimSchemaFile).schema\r\n",
+					"\r\n",
+					"claimDf = spark.read.option(\"mutiline\", \"true\").schema(observationSchema).json(bronzePath)\r\n",
+					"claimDf = claimDf.withColumn(\"year\", year(to_date(col(\"issued\"))))\r\n",
+					"claimDf = claimDf.withColumn(\"month\", date_format(to_date(col(\"issued\")), 'MM'))\r\n",
+					"claimDf = claimDf.withColumn(\"day\", date_format(to_date(col(\"issued\")), 'dd'))\r\n",
+					"\r\n",
+					"#Main\r\n",
+					"mainDf = claimDf.select(\r\n",
+					"    \"id\",\"resourceType\",\"status\",\"billablePeriod.end\",\"billablePeriod.start\",\"created\",\"patient.display\",\"patient.reference\",\r\n",
+					"    \"prescription.reference\",\"provider.display\",\"provider.reference\",\"total.currency\",\"total.value\",\"use\",\"year\",\"month\",\"day\")\r\n",
+					"\r\n",
+					"mainDf = mainDf.toDF(*( \r\n",
+					"    \"claim_id\",\"resourceType\",\"status\",\"billablePeriod_end\",\"billablePeriod_start\",\"created\",\r\n",
+					"    \"patient_display\",\"patient_id_reference\",\r\n",
+					"    \"prescription_reference\",\"provider_display\",\"provider_org_id_reference\",\"total_currency\",\"total_value\",\"use\",\"year\",\"month\",\"day\"))\r\n",
+					"\r\n",
+					"mainDf = mainDf.withColumn(\"patient_id_reference\",regexp_replace(\"patient_id_reference\",\"Patient/\",\"\")).withColumn(\r\n",
+					"    \"provider_org_id_reference\",regexp_replace(\"provider_org_id_reference\",\"Organization/\",\"\"))\r\n",
+					"\r\n",
+					"mainDf = mainDf.repartition(\"year\", \"month\")\r\n",
+					"mainDf.write.format(\"delta\").mode(\"overwrite\").partitionBy(\"year\", \"month\").save(silverPath + \"/Claim_main/\")\r\n",
+					"\r\n",
+					"#Insurance\r\n",
+					"insuranceDf = claimDf.select(\"id\", explode(Claim_df.insurance),\"year\",\"month\",\"day\")\r\n",
+					"\r\n",
+					"insuranceDf = insuranceDf.toDF(*(\"claim_id\",\"insurance\"),\"year\",\"month\",\"day\")\r\n",
+					"\r\n",
+					"insuranceDf = insuranceDf.select(\r\n",
+					"    \"claim_id\",\"insurance.coverage.display\",\"insurance.focal\",\"insurance.sequence\",\"year\",\"month\",\"day\").toDF(*\r\n",
+					"    (\"claim_id\",\"insurance_coverage.display\",\"insurance_focal\",\"insurance_sequence\",\"year\",\"month\",\"day\"))\r\n",
+					"\r\n",
+					"insuranceDf = insuranceDf.repartition(\"year\", \"month\")\r\n",
+					"insuranceDf.write.format(\"delta\").mode(\"overwrite\").partitionBy(\"year\", \"month\").save(silverPath + \"/Claim_insurance/\")\r\n",
+					"\r\n",
+					"#Diagnosis\r\n",
+					"diagnosisDf = claimDf.select(\"id\", explode(Claim_df.diagnosis),\"year\",\"month\",\"day\")\r\n",
+					"\r\n",
+					"diagnosisDf = diagnosisDf.toDF(*(\"id\", \"diagnosis\",\"year\",\"month\",\"day\"))\r\n",
+					"\r\n",
+					"diagnosisDf = diagnosisDf.select(\"id\",\"diagnosis.diagnosisReference.reference\",\"diagnosis.sequence\",\"year\",\"month\",\"day\").toDF(*(  \r\n",
+					"    \"Claim_id\",\"diagnosis_reference\",\"diagnosis_sequence\",\"year\",\"month\",\"day\"))\r\n",
+					"\r\n",
+					"diagnosisDf = diagnosisDf.withColumn(\"diagnosis_reference\",regexp_replace(\"diagnosis_reference\",\"Condition/\",\"\"))\r\n",
+					"\r\n",
+					"diagnosisDf = diagnosisDf.repartition(\"year\", \"month\")\r\n",
+					"diagnosisDf.write.format(\"delta\").mode(\"overwrite\").partitionBy(\"year\", \"month\").save(silverPath + \"/Claim_diagnosis/\")"
 				],
 				"execution_count": null
 			}
