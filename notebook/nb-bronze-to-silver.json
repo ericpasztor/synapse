@@ -18,10 +18,10 @@
 			"numExecutors": 2,
 			"runAsWorkspaceSystemIdentity": false,
 			"conf": {
-				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.enabled": "true",
 				"spark.dynamicAllocation.minExecutors": "2",
-				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "3018da45-b673-4822-9fe2-bf5647a3e7b4"
+				"spark.dynamicAllocation.maxExecutors": "6",
+				"spark.autotune.trackingId": "2c120af5-064b-478a-abf0-ca7ce9db1acf"
 			}
 		},
 		"metadata": {
@@ -317,7 +317,7 @@
 					"procedureDf = procedureDf.repartition(\"year\", \"month\")\r\n",
 					"procedureDf.write.format(\"delta\").mode(\"overwrite\").partitionBy(\"year\", \"month\").save(silverPath + \"/Claim_procedure/\")"
 				],
-				"execution_count": 18
+				"execution_count": 2
 			},
 			{
 				"cell_type": "markdown",
