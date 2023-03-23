@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "true",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "6",
-				"spark.autotune.trackingId": "1d21bb98-0ccd-4922-98c9-1b358f96e119"
+				"spark.autotune.trackingId": "a135cf57-92e7-49d4-9f98-5f1782d04ce7"
 			}
 		},
 		"metadata": {
@@ -62,7 +62,7 @@
 					"\r\n",
 					"accountName = 'adlsfhirnonprod'\r\n",
 					"containerName = 'bronze'\r\n",
-					"relativePath = '30tb'\r\n",
+					"relativePath = '1tb'\r\n",
 					"linkedServiceName = 'lsadlsfhirnonprod'\r\n",
 					"\r\n",
 					"sasToken = mssparkutils.credentials.getConnectionStringOrCreds(linkedServiceName)\r\n",
@@ -70,7 +70,7 @@
 					"wasbPath = 'wasbs://%s@%s.blob.core.windows.net/%s' % (containerName, accountName, relativePath)\r\n",
 					"spark.conf.set('fs.azure.sas.%s.%s.blob.core.windows.net' % (containerName, accountName), sasToken)"
 				],
-				"execution_count": 13
+				"execution_count": 15
 			},
 			{
 				"cell_type": "markdown",
@@ -258,10 +258,10 @@
 					"claimSchemaFile = bronzePath + \"year=2016/\"\r\n",
 					"claimSchema = spark.read.option(\"mutiline\", \"true\").json(claimSchemaFile).schema\r\n",
 					"\r\n",
-					"claimDf = spark.read.option(\"mutiline\", \"true\").schema(observationSchema).json(bronzePath)\r\n",
-					"claimDf = claimDf.withColumn(\"year\", year(to_date(col(\"issued\"))))\r\n",
-					"claimDf = claimDf.withColumn(\"month\", date_format(to_date(col(\"issued\")), 'MM'))\r\n",
-					"claimDf = claimDf.withColumn(\"day\", date_format(to_date(col(\"issued\")), 'dd'))\r\n",
+					"claimDf = spark.read.option(\"mutiline\", \"true\").schema(claimSchema).json(bronzePath)\r\n",
+					"claimDf = claimDf.withColumn(\"year\", year(to_date(col(\"created\"))))\r\n",
+					"claimDf = claimDf.withColumn(\"month\", date_format(to_date(col(\"created\")), 'MM'))\r\n",
+					"claimDf = claimDf.withColumn(\"day\", date_format(to_date(col(\"created\")), 'dd'))\r\n",
 					"\r\n",
 					"#Main\r\n",
 					"mainDf = claimDf.select(\r\n",
@@ -317,7 +317,7 @@
 					"procedureDf = procedureDf.repartition(\"year\", \"month\")\r\n",
 					"procedureDf.write.format(\"delta\").mode(\"overwrite\").partitionBy(\"year\", \"month\").save(silverPath + \"/Claim_procedure/\")"
 				],
-				"execution_count": null
+				"execution_count": 18
 			},
 			{
 				"cell_type": "markdown",
