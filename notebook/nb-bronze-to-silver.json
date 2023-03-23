@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "true",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "6",
-				"spark.autotune.trackingId": "9ece6108-2398-463c-89ad-d10baa8ecb04"
+				"spark.autotune.trackingId": "3855e603-4b21-448d-9653-13996fc23fca"
 			}
 		},
 		"metadata": {
@@ -280,7 +280,7 @@
 					"mainDf.write.format(\"delta\").mode(\"overwrite\").partitionBy(\"year\", \"month\").save(silverPath + \"/Claim_main/\")\r\n",
 					"\r\n",
 					"#Insurance\r\n",
-					"insuranceDf = claimDf.select(\"id\", explode(Claim_df.insurance),\"year\",\"month\",\"day\")\r\n",
+					"insuranceDf = claimDf.select(\"id\", explode(claimDf.insurance),\"year\",\"month\",\"day\")\r\n",
 					"\r\n",
 					"insuranceDf = insuranceDf.toDF(*(\"claim_id\",\"insurance\"),\"year\",\"month\",\"day\")\r\n",
 					"\r\n",
@@ -292,17 +292,30 @@
 					"insuranceDf.write.format(\"delta\").mode(\"overwrite\").partitionBy(\"year\", \"month\").save(silverPath + \"/Claim_insurance/\")\r\n",
 					"\r\n",
 					"#Diagnosis\r\n",
-					"diagnosisDf = claimDf.select(\"id\", explode(Claim_df.diagnosis),\"year\",\"month\",\"day\")\r\n",
+					"diagnosisDf = claimDf.select(\"id\", explode(claimDf.diagnosis),\"year\",\"month\",\"day\")\r\n",
 					"\r\n",
 					"diagnosisDf = diagnosisDf.toDF(*(\"id\", \"diagnosis\",\"year\",\"month\",\"day\"))\r\n",
 					"\r\n",
 					"diagnosisDf = diagnosisDf.select(\"id\",\"diagnosis.diagnosisReference.reference\",\"diagnosis.sequence\",\"year\",\"month\",\"day\").toDF(*(  \r\n",
-					"    \"Claim_id\",\"diagnosis_reference\",\"diagnosis_sequence\",\"year\",\"month\",\"day\"))\r\n",
+					"    \"claim_id\",\"diagnosis_reference\",\"diagnosis_sequence\",\"year\",\"month\",\"day\"))\r\n",
 					"\r\n",
 					"diagnosisDf = diagnosisDf.withColumn(\"diagnosis_reference\",regexp_replace(\"diagnosis_reference\",\"Condition/\",\"\"))\r\n",
 					"\r\n",
 					"diagnosisDf = diagnosisDf.repartition(\"year\", \"month\")\r\n",
-					"diagnosisDf.write.format(\"delta\").mode(\"overwrite\").partitionBy(\"year\", \"month\").save(silverPath + \"/Claim_diagnosis/\")"
+					"diagnosisDf.write.format(\"delta\").mode(\"overwrite\").partitionBy(\"year\", \"month\").save(silverPath + \"/Claim_diagnosis/\")\r\n",
+					"\r\n",
+					"#Procedure\r\n",
+					"procedureDf = claimDf.select(\"id\",explode(claimDf.procedure),\"year\",\"month\",\"day\")\r\n",
+					"\r\n",
+					"procedureDf = procedureDf.toDF(*(\"id\",\"procedure\"),\"year\",\"month\",\"day\")\r\n",
+					"\r\n",
+					"procedureDf = procedureDf.select(\"id\",\"procedure.procedureReference.reference\",\"procedure.sequence\",\"year\",\"month\",\"day\").toDF(*(\r\n",
+					"    \"claim_id\",\"procedure_reference\",\"procedure_sequence\",\"year\",\"month\",\"day\"))\r\n",
+					"\r\n",
+					"procedureDf = procedureDf.withColumn(\"procedure_reference\",regexp_replace(\"procedure_reference\",\"Procedure/\",\"\"))\r\n",
+					"\r\n",
+					"procedureDf = procedureDf.repartition(\"year\", \"month\")\r\n",
+					"procedureDf.write.format(\"delta\").mode(\"overwrite\").partitionBy(\"year\", \"month\").save(silverPath + \"/Claim_procedure/\")"
 				],
 				"execution_count": null
 			}
