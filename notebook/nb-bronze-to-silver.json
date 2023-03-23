@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "8a290574-cdcd-4ed2-832c-1e95bed6b44b"
+				"spark.autotune.trackingId": "691fc125-993e-48b1-bf86-54701b5e2f49"
 			}
 		},
 		"metadata": {
@@ -62,7 +62,7 @@
 					"\r\n",
 					"accountName = 'adlsfhirnonprod'\r\n",
 					"containerName = 'bronze'\r\n",
-					"relativePath = '30tb'\r\n",
+					"relativePath = '1tb'\r\n",
 					"linkedServiceName = 'lsadlsfhirnonprod'\r\n",
 					"\r\n",
 					"sasToken = mssparkutils.credentials.getConnectionStringOrCreds(linkedServiceName)\r\n",
@@ -70,7 +70,7 @@
 					"wasbPath = 'wasbs://%s@%s.blob.core.windows.net/%s' % (containerName, accountName, relativePath)\r\n",
 					"spark.conf.set('fs.azure.sas.%s.%s.blob.core.windows.net' % (containerName, accountName), sasToken)"
 				],
-				"execution_count": 1
+				"execution_count": 2
 			},
 			{
 				"cell_type": "markdown",
@@ -396,19 +396,137 @@
 						"transient": {
 							"deleting": false
 						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"patientDf = spark.read.json(\"abfss://bronze@\" + accountName + \".dfs.core.windows.net/reference_data/\" + relativePath + \"/*/Patient.ndjson\")\r\n",
+					"\r\n",
+					"patientIdDf = patientDf.select(\"id\",\"address.city\",\"address.country\", explode(patientDf.address), explode(patientDf.extension), \"address.postalCode\",\"address.state\")\r\n",
+					"\r\n",
+					"patientIdDf = patientIdDf.toDF(*(\"id\",\"address.city\",\"address.country\",\"address\", \"extension\",\"address.postalCode\",\"address.state\"))\r\n",
+					"\r\n",
+					"display(patientIdDf)\r\n",
+					"\r\n",
+					"#patientIdDf = patientIdDf.select(\"id\",\"address.city\",\"address.country\",\"extension.url\",\"extension.valueDecimal\",\"url\",\"address.postalCode\",\"address.state\").toDF(*(  \r\n",
+					"#    \"patient_id\",\"address_city\",\"address_country\",\"extension.extension.url\",\"extension.extension.valueDecimal\",\"address.postalCode\",\"address.state\"))\r\n",
+					"\r\n",
+					"#display(patientIdDf)"
+				],
+				"execution_count": 9
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
 					}
 				},
 				"source": [
-					"patientDf = spark.read.json(\"abfss://bronze@\" + accountName + \".dfs.core.windows.net/historic_data/\" + relativePath + \"/Patient/\")\r\n",
+					"from typing import Final, Dict, Tuple\r\n",
+					"from pyspark.sql import DataFrame as SDF\r\n",
+					"from pyspark.sql.functions import *\r\n",
 					"\r\n",
-					"patientIdDf = patientDf.select(\"id\",\"address.city\",\"address.country\", explode(patientDf.extension), \"address.postalCode\",\"address.state\")\r\n",
+					"def rename_dataframe_cols(df: SDF, col_names: Dict[str, str]) -> SDF:\r\n",
 					"\r\n",
-					"patientIdDf = patientIdDf.toDF(*(\"id\", \"extension\"))\r\n",
+					"    return df.select(*[col(col_name).alias(col_names.get(col_name, col_name)) for col_name in df.columns])\r\n",
 					"\r\n",
-					"patientIdDf = patientIdDf.select(\"id\",\"extension.diagnosisReference.reference\",\"diagnosis.sequence\",\"year\",\"month\",\"day\").toDF(*(  \r\n",
-					"    \"patient_id\",\"diagnosis_reference\",\"diagnosis_sequence\",\"year\",\"month\",\"day\"))"
+					"def update_column_names(df: SDF, index: int) -> SDF:\r\n",
+					"    df_temp = df\r\n",
+					"    all_cols = df_temp.columns\r\n",
+					"    #new_cols = dict((column, f\"{column}*{index}\") for column in all_cols)\r\n",
+					"    #df_temp = df_temp.transform(lambda df_x: rename_dataframe_cols(df_x, new_cols))\r\n",
+					"\r\n",
+					"    return df_temp"
 				],
-				"execution_count": null
+				"execution_count": 18
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def flatten_json(df_arg: SDF, index: int = 1) -> SDF:\r\n",
+					"\r\n",
+					"    df = update_column_names(df_arg, index) if index == 1 else df_arg\r\n",
+					"\r\n",
+					"    fields = df.schema.fields\r\n",
+					"\r\n",
+					"    for field in fields:\r\n",
+					"        data_type = str(field.dataType)\r\n",
+					"        column_name = field.name\r\n",
+					"\r\n",
+					"        first_10_chars = data_type[0:10]\r\n",
+					"\r\n",
+					"        if first_10_chars == 'ArrayType(':\r\n",
+					"\r\n",
+					"            df_temp = df.withColumn(column_name, explode_outer(col(column_name)))\r\n",
+					"            return flatten_json(df_temp, index + 1)\r\n",
+					"\r\n",
+					"        elif first_10_chars == 'StructType':\r\n",
+					"            current_col = column_name\r\n",
+					"\r\n",
+					"            append_str = current_col\r\n",
+					"            data_type_str = str(df.schema[current_col].dataType)\r\n",
+					"\r\n",
+					"            df_temp = df.withColumnRenamed(column_name, column_name + \"#1\") \\\r\n",
+					"                if column_name in data_type_str else df\r\n",
+					"            current_col = current_col \r\n",
+					"            #+ \"#1\" if column_name in data_type_str else current_col\r\n",
+					"\r\n",
+					"            df_before_expanding = df_temp.select(f\"{current_col}.*\")\r\n",
+					"            newly_gen_cols = df_before_expanding.columns\r\n",
+					"\r\n",
+					"            begin_index = append_str.rfind('*')\r\n",
+					"            end_index = len(append_str)\r\n",
+					"            level = append_str[begin_index + 1: end_index]\r\n",
+					"            next_level = int(level) + 1\r\n",
+					"\r\n",
+					"            custom_cols = dict((field, f\"{append_str}-->{field}*{next_level}\") for field in newly_gen_cols)\r\n",
+					"            df_temp2 = df_temp.select(\"*\", f\"{current_col}.*\").drop(current_col)\r\n",
+					"            df_temp3 = df_temp2.transform(lambda df_x: rename_dataframe_cols(df_x, custom_cols))\r\n",
+					"            return flatten_json(df_temp3, index + 1)\r\n",
+					"\r\n",
+					"    return df"
+				],
+				"execution_count": 19
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"patientDf = spark.read.json(\"abfss://bronze@\" + accountName + \".dfs.core.windows.net/reference_data/\" + relativePath + \"/*/Patient.ndjson\")\r\n",
+					"\r\n",
+					"df3 = flatten_json(patientDf)\r\n",
+					"display(df3)"
+				],
+				"execution_count": 20
 			}
 		]
 	}
