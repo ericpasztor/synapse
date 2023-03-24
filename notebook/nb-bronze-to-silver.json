@@ -7,21 +7,21 @@
 		"nbformat": 4,
 		"nbformat_minor": 2,
 		"bigDataPool": {
-			"referenceName": "sparknonprodmd",
+			"referenceName": "sparknonprodlg",
 			"type": "BigDataPoolReference"
 		},
 		"sessionProperties": {
-			"driverMemory": "56g",
-			"driverCores": 8,
-			"executorMemory": "56g",
-			"executorCores": 8,
+			"driverMemory": "112g",
+			"driverCores": 16,
+			"executorMemory": "112g",
+			"executorCores": 16,
 			"numExecutors": 2,
 			"runAsWorkspaceSystemIdentity": false,
 			"conf": {
 				"spark.dynamicAllocation.enabled": "true",
 				"spark.dynamicAllocation.minExecutors": "2",
-				"spark.dynamicAllocation.maxExecutors": "6",
-				"spark.autotune.trackingId": "0f3a8657-a4d9-4ec8-970a-e6e603e19e9c"
+				"spark.dynamicAllocation.maxExecutors": "5",
+				"spark.autotune.trackingId": "a2045e35-f771-4510-a0a0-ea0bc65cae47"
 			}
 		},
 		"metadata": {
@@ -35,18 +35,18 @@
 				"name": "python"
 			},
 			"a365ComputeOptions": {
-				"id": "/subscriptions/b3d87898-3bc9-4864-ba33-06c31dea9d94/resourceGroups/rg-cdw-nonprod/providers/Microsoft.Synapse/workspaces/wkspc-cdw-nonprod/bigDataPools/sparknonprodmd",
-				"name": "sparknonprodmd",
+				"id": "/subscriptions/b3d87898-3bc9-4864-ba33-06c31dea9d94/resourceGroups/rg-cdw-nonprod/providers/Microsoft.Synapse/workspaces/wkspc-cdw-nonprod/bigDataPools/sparknonprodlg",
+				"name": "sparknonprodlg",
 				"type": "Spark",
-				"endpoint": "https://wkspc-cdw-nonprod.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/sparknonprodmd",
+				"endpoint": "https://wkspc-cdw-nonprod.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/sparknonprodlg",
 				"auth": {
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
 				},
 				"sparkVersion": "3.3",
 				"nodeCount": 10,
-				"cores": 8,
-				"memory": 56,
+				"cores": 16,
+				"memory": 112,
 				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
@@ -60,9 +60,11 @@
 					"from notebookutils import mssparkutils\r\n",
 					"from pyspark.sql import SparkSession\r\n",
 					"\r\n",
+					"spark.conf.set(\"spark.microsoft.delta.optimizeWrite.enabled\", \"true\")\r\n",
+					"\r\n",
 					"accountName = 'adlsfhirnonprod'\r\n",
 					"containerName = 'bronze'\r\n",
-					"relativePath = '30tb'\r\n",
+					"relativePath = '1tb'\r\n",
 					"linkedServiceName = 'lsadlsfhirnonprod'\r\n",
 					"\r\n",
 					"sasToken = mssparkutils.credentials.getConnectionStringOrCreds(linkedServiceName)\r\n",
@@ -663,6 +665,37 @@
 					"deltaTable.vacuum()"
 				],
 				"execution_count": 5
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"startDate = datetime.datetime.strptime('2021-01-01', \"%Y-%m-%d\")\r\n",
+					"maxDate = datetime.datetime.strptime('2021-12-31', \"%Y-%m-%d\")\r\n",
+					"\r\n",
+					"while startDate <= maxDate:\r\n",
+					"    #endDate = startDate + datetime.timedelta(days=7)\r\n",
+					"    month = startDate.strftime('%m')\r\n",
+					"    day = startDate.strftime('%d')\r\n",
+					"\r\n",
+					"    print(month + \" \" + day)\r\n",
+					"\r\n",
+					"  #  dfInner = df.where((df.month == month) & (df.day == day))\r\n",
+					"  #  dfInner.write.format(\"delta\").mode(\"append\").partitionBy(\"year\", \"month\", \"day\").save(silverPath + \"/Observation/\")\r\n",
+					"\r\n",
+					"    startDate = endDate + datetime.timedelta(days=1)"
+				],
+				"execution_count": 6
 			}
 		]
 	}
