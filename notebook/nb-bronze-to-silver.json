@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "ac8398a5-1e3b-4bf7-a0c6-538a1923cb3f"
+				"spark.autotune.trackingId": "a069e396-671e-41a7-9a9e-eaec3398dc16"
 			}
 		},
 		"metadata": {
@@ -70,7 +70,7 @@
 					"wasbPath = 'wasbs://%s@%s.blob.core.windows.net/%s' % (containerName, accountName, relativePath)\r\n",
 					"spark.conf.set('fs.azure.sas.%s.%s.blob.core.windows.net' % (containerName, accountName), sasToken)"
 				],
-				"execution_count": 1
+				"execution_count": 5
 			},
 			{
 				"cell_type": "markdown",
@@ -346,89 +346,6 @@
 					}
 				},
 				"source": [
-					"df = spark.read.json(\"abfss://bronze@\" + accountName + \".dfs.core.windows.net/historic_data/\" + relativePath + \"/Patient/\")\r\n",
-					"\r\n",
-					"df.select(\"id\",\"summaries.period.year\",\"summaries.rainfall\").display()\r\n",
-					"df = df.withColumn(\"year_rainfall\", F.arrays_zip(\"year\", \"rainfall\"))\r\n",
-					"\r\n",
-					"df.withColumn(\"year_rainfall\", explode(\"year_rainfall\")).select(\r\n",
-					"    \"stationCode\", col(\"year_rainfall.rainfall\").alias(\"Rainfall\"), col(\"year_rainfall.year\").alias(\"Year\"))\r\n",
-					"\r\n",
-					"out = (df.select(\"stationCode\", explode(arrays_zip(*[\"extension.valueAddress.year\",\"summaries.rainfall\"])))\r\n",
-					".select(\"stationCode\", col(\"col\")['0'].alias(\"year\"), col(\"col\")['1'].alias(\"rainfall\")))\r\n",
-					"\r\n",
-					"out.display(20, False)"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"id\r\n",
-					"extension.url\r\n",
-					"extension.valueAddress.city\r\n",
-					"extension.valueAddress.country\r\n",
-					"extension.valueAddress.state\r\n",
-					"extension.valueDecimal\r\n",
-					"extension.valueString"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"collapsed": false
-				},
-				"source": [
-					"patientDf = spark.read.json(\"abfss://bronze@\" + accountName + \".dfs.core.windows.net/reference_data/\" + relativePath + \"/*/Patient.ndjson\")\r\n",
-					"\r\n",
-					"#patientIdDf = patientDf.select(\"id\",\"address.city\",\"address.country\", explode(patientDf.address), explode(patientDf.extension), \"address.postalCode\",\"address.state\")\r\n",
-					"\r\n",
-					"#patientIdDf = patientIdDf.toDF(*(\"id\",\"address.city\",\"address.country\",\"address\", \"extension\",\"address.postalCode\",\"address.state\"))\r\n",
-					"\r\n",
-					"#display(patientIdDf)\r\n",
-					"\r\n",
-					"#patientIdDf = patientIdDf.select(\"id\",\"address.city\",\"address.country\",\"extension.url\",\"extension.valueDecimal\",\"url\",\"address.postalCode\",\"address.state\").toDF(*(  \r\n",
-					"#    \"patient_id\",\"address_city\",\"address_country\",\"extension.extension.url\",\"extension.extension.valueDecimal\",\"address.postalCode\",\"address.state\"))\r\n",
-					"\r\n",
-					"#display(patientIdDf)"
-				],
-				"execution_count": 9
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
 					"from typing import Final, Dict, Tuple\r\n",
 					"from pyspark.sql import DataFrame as SDF\r\n",
 					"from pyspark.sql.functions import *\r\n",
@@ -445,7 +362,7 @@
 					"\r\n",
 					"    return df_temp"
 				],
-				"execution_count": 4
+				"execution_count": 2
 			},
 			{
 				"cell_type": "code",
@@ -503,7 +420,7 @@
 					"\r\n",
 					"    return df"
 				],
-				"execution_count": 5
+				"execution_count": 3
 			},
 			{
 				"cell_type": "code",
@@ -520,6 +437,8 @@
 					"collapsed": false
 				},
 				"source": [
+					"silverPath = \"abfss://silver@\" + accountName + \".dfs.core.windows.net/\" + relativePath\r\n",
+					"\r\n",
 					"patientDf = spark.read.json(\"abfss://bronze@\" + accountName + \".dfs.core.windows.net/reference_data/\" + relativePath + \"/*/Patient.ndjson\")\r\n",
 					"patientDfFlat = flatten_json(patientDf)\r\n",
 					"\r\n",
@@ -527,34 +446,100 @@
 					"\r\n",
 					"patientDfFlat = patientDfFlat.toDF(*replacedColumns)\r\n",
 					"\r\n",
-					"display(patientDfFlat)\r\n",
-					"patientDfFlat.printSchema()\r\n",
+					"#Patient Address\r\n",
+					"patientAddressDf = patientDfFlat.select(\"id\",\"address_city\",\"address_country\",\"address_line\",\"address_postalCode\",\"address_state\",\"address_extension_extension_url\",\"address_extension_extension_valueDecimal\",\"address_extension_url\",\r\n",
+					").toDF(*(\"patient_id\",\"address_city\",\"address_country\",\"address_line\",\"address_postalCode\",\"address_state\",\"address_extension_extension_url\",\"address_extension_extension_valueDecimal\",\"address_extension_url\",\r\n",
+					"))\r\n",
 					"\r\n",
-					""
-				],
-				"execution_count": 10
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"collapsed": false
-				},
-				"source": [
-					"patientIdDf = patientDfFlat.select(\"id\",\"address_city\",\"address_country\", \"address_postalCode\",\"address_state\").toDF(*(\r\n",
-					"    \"id\",\"address_city\",\"address_country\", \"address_postalCode\",\"address_state\"))\r\n",
+					"patientAddressDf.write.format(\"delta\").mode(\"overwrite\").save(silverPath + \"/Patient_address/\")\r\n",
 					"\r\n",
-					"patientIdDf.printSchema()"
+					"#Patient Identifier\r\n",
+					"patientIdentifierDf = patientDfFlat.select(\"id\",\r\n",
+					"\"birthDate\",\r\n",
+					"\"deceasedDateTime\",\r\n",
+					"\"gender\",\r\n",
+					"\"maritalStatus_text\",\r\n",
+					"\"maritalStatus_coding_code\",\r\n",
+					"\"maritalStatus_coding_display\",\r\n",
+					"\"maritalStatus_coding_system\",\r\n",
+					"\"multipleBirthBoolean\",\r\n",
+					"\"multipleBirthInteger\",\r\n",
+					"\"resourceType\",\r\n",
+					"\"text_div\",\r\n",
+					"\"text_status\",\r\n",
+					"\"identifier_system\",\r\n",
+					"\"identifier_type_coding_code\",\r\n",
+					"\"identifier_type_coding_display\",\r\n",
+					"\"identifier_type_coding_system\",\r\n",
+					"\"identifier_type_text\",\r\n",
+					"\"identifier_value\",\r\n",
+					"\"name_family\",\r\n",
+					"\"name_given\",\r\n",
+					"\"name_prefix\",\r\n",
+					"\"name_suffix\",\r\n",
+					"\"name_use\",\r\n",
+					"\"telecom_system\",\r\n",
+					"\"telecom_use\",\r\n",
+					"\"telecom_value\",\r\n",
+					"\"communication_language_text\",\r\n",
+					"\"communication_language_coding_code\",\r\n",
+					"\"communication_language_coding_display\",\r\n",
+					"\"communication_language_coding_system\").toDF(*(\r\n",
+					"\"patient_id\"\r\n",
+					"\"birthDate\",\r\n",
+					"\"deceasedDateTime\",\r\n",
+					"\"gender\",\r\n",
+					"\"maritalStatus_text\",\r\n",
+					"\"maritalStatus_coding_code\",\r\n",
+					"\"maritalStatus_coding_display\",\r\n",
+					"\"maritalStatus_coding_system\",\r\n",
+					"\"multipleBirthBoolean\",\r\n",
+					"\"multipleBirthInteger\",\r\n",
+					"\"resourceType\",\r\n",
+					"\"text_div\",\r\n",
+					"\"text_status\",\r\n",
+					"\"identifier_system\",\r\n",
+					"\"identifier_type_coding_code\",\r\n",
+					"\"identifier_type_coding_display\",\r\n",
+					"\"identifier_type_coding_system\",\r\n",
+					"\"identifier_type_text\",\r\n",
+					"\"identifier_value\",\r\n",
+					"\"name_family\",\r\n",
+					"\"name_given\",\r\n",
+					"\"name_prefix\",\r\n",
+					"\"name_suffix\",\r\n",
+					"\"name_use\",\r\n",
+					"\"telecom_system\",\r\n",
+					"\"telecom_use\",\r\n",
+					"\"telecom_value\",\r\n",
+					"\"communication_language_text\",\r\n",
+					"\"communication_language_coding_code\",\r\n",
+					"\"communication_language_coding_display\",\r\n",
+					"\"communication_language_coding_system\"  \r\n",
+					"))\r\n",
+					"\r\n",
+					"patientIdentifierDf.write.format(\"delta\").mode(\"overwrite\").save(silverPath + \"/Patient_identifier/\")\r\n",
+					"\r\n",
+					"#Patient Extension\r\n",
+					"patientExtensionDf = patientDfFlat.select(\"id\",\r\n",
+					"\"extension_url\",\r\n",
+					"\"extension_valueAddress_city\",\r\n",
+					"\"extension_valueAddress_country\",\r\n",
+					"\"extension_valueAddress_state\",\r\n",
+					"\"extension_valueDecimal\",\r\n",
+					"\"extension_valueString\").toDF(*(\r\n",
+					"\"patient_id\",\r\n",
+					"\"extension_url\",\r\n",
+					"\"extension_valueAddress_city\",\r\n",
+					"\"extension_valueAddress_country\",\r\n",
+					"\"extension_valueAddress_state\",\r\n",
+					"\"extension_valueDecimal\",\r\n",
+					"\"extension_valueString\"  \r\n",
+					"))\r\n",
+					"\r\n",
+					"patientExtensionDf.write.format(\"delta\").mode(\"overwrite\").save(silverPath + \"/Patient_extension/\")"
 				],
-				"execution_count": 15
+				"execution_count": 4
 			}
 		]
 	}
