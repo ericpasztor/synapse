@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "691fc125-993e-48b1-bf86-54701b5e2f49"
+				"spark.autotune.trackingId": "4d1d7bf9-ae75-4160-a286-9525a079422b"
 			}
 		},
 		"metadata": {
@@ -70,7 +70,7 @@
 					"wasbPath = 'wasbs://%s@%s.blob.core.windows.net/%s' % (containerName, accountName, relativePath)\r\n",
 					"spark.conf.set('fs.azure.sas.%s.%s.blob.core.windows.net' % (containerName, accountName), sasToken)"
 				],
-				"execution_count": 2
+				"execution_count": 1
 			},
 			{
 				"cell_type": "markdown",
@@ -402,11 +402,11 @@
 				"source": [
 					"patientDf = spark.read.json(\"abfss://bronze@\" + accountName + \".dfs.core.windows.net/reference_data/\" + relativePath + \"/*/Patient.ndjson\")\r\n",
 					"\r\n",
-					"patientIdDf = patientDf.select(\"id\",\"address.city\",\"address.country\", explode(patientDf.address), explode(patientDf.extension), \"address.postalCode\",\"address.state\")\r\n",
+					"#patientIdDf = patientDf.select(\"id\",\"address.city\",\"address.country\", explode(patientDf.address), explode(patientDf.extension), \"address.postalCode\",\"address.state\")\r\n",
 					"\r\n",
-					"patientIdDf = patientIdDf.toDF(*(\"id\",\"address.city\",\"address.country\",\"address\", \"extension\",\"address.postalCode\",\"address.state\"))\r\n",
+					"#patientIdDf = patientIdDf.toDF(*(\"id\",\"address.city\",\"address.country\",\"address\", \"extension\",\"address.postalCode\",\"address.state\"))\r\n",
 					"\r\n",
-					"display(patientIdDf)\r\n",
+					"#display(patientIdDf)\r\n",
 					"\r\n",
 					"#patientIdDf = patientIdDf.select(\"id\",\"address.city\",\"address.country\",\"extension.url\",\"extension.valueDecimal\",\"url\",\"address.postalCode\",\"address.state\").toDF(*(  \r\n",
 					"#    \"patient_id\",\"address_city\",\"address_country\",\"extension.extension.url\",\"extension.extension.valueDecimal\",\"address.postalCode\",\"address.state\"))\r\n",
@@ -440,12 +440,12 @@
 					"def update_column_names(df: SDF, index: int) -> SDF:\r\n",
 					"    df_temp = df\r\n",
 					"    all_cols = df_temp.columns\r\n",
-					"    #new_cols = dict((column, f\"{column}*{index}\") for column in all_cols)\r\n",
-					"    #df_temp = df_temp.transform(lambda df_x: rename_dataframe_cols(df_x, new_cols))\r\n",
+					"    new_cols = dict((column, f\"{column}*{index}\") for column in all_cols)\r\n",
+					"    df_temp = df_temp.transform(lambda df_x: rename_dataframe_cols(df_x, new_cols))\r\n",
 					"\r\n",
 					"    return df_temp"
 				],
-				"execution_count": 18
+				"execution_count": 2
 			},
 			{
 				"cell_type": "code",
@@ -486,8 +486,7 @@
 					"\r\n",
 					"            df_temp = df.withColumnRenamed(column_name, column_name + \"#1\") \\\r\n",
 					"                if column_name in data_type_str else df\r\n",
-					"            current_col = current_col \r\n",
-					"            #+ \"#1\" if column_name in data_type_str else current_col\r\n",
+					"            current_col = current_col + \"#1\" if column_name in data_type_str else current_col\r\n",
 					"\r\n",
 					"            df_before_expanding = df_temp.select(f\"{current_col}.*\")\r\n",
 					"            newly_gen_cols = df_before_expanding.columns\r\n",
@@ -504,7 +503,7 @@
 					"\r\n",
 					"    return df"
 				],
-				"execution_count": 19
+				"execution_count": 4
 			},
 			{
 				"cell_type": "code",
@@ -523,10 +522,51 @@
 				"source": [
 					"patientDf = spark.read.json(\"abfss://bronze@\" + accountName + \".dfs.core.windows.net/reference_data/\" + relativePath + \"/*/Patient.ndjson\")\r\n",
 					"\r\n",
-					"df3 = flatten_json(patientDf)\r\n",
-					"display(df3)"
+					"patientDfFlat = flatten_json(patientDf)\r\n",
+					"\r\n",
+					"level = list(map(lambda x: x.replace(\"-->\", \"_\"), patientDfFlat.columns))\r\n",
+					"patientDfFlat = patientDfFlat.toDF(*level)\r\n",
+					"\r\n",
+					"firstLevel = list(map(lambda x: x.replace(\"*1\", \"\"), patientDfFlat.columns))\r\n",
+					"patientDfFlat = patientDfFlat.toDF(*firstLevel)\r\n",
+					"\r\n",
+					"secondLevel = list(map(lambda x: x.replace(\"*2\", \"\"), patientDfFlat.columns))\r\n",
+					"patientDfFlat = patientDfFlat.toDF(*secondLevel)\r\n",
+					"\r\n",
+					"thirdLevel = list(map(lambda x: x.replace(\"*3\", \"\"), patientDfFlat.columns))\r\n",
+					"patientDfFlat = patientDfFlat.toDF(*thirdLevel)\r\n",
+					"\r\n",
+					"fourthLevel = list(map(lambda x: x.replace(\"*4\", \"\"), patientDfFlat.columns))\r\n",
+					"patientDfFlat = patientDfFlat.toDF(*fourthLevel)\r\n",
+					"\r\n",
+					"display(patientDfFlat)\r\n",
+					"patientDfFlat.printSchema()\r\n",
+					"\r\n",
+					""
 				],
-				"execution_count": 20
+				"execution_count": 13
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"patientIdDf = patientDfFlat.select(\"id\",\"address_city\",\"address_country\", \"address_postalCode\",\"address_state\").toDF(*(\r\n",
+					"    \"id\",\"address_city\",\"address_country\", \"address_postalCode\",\"address_state\"))\r\n",
+					"\r\n",
+					"patientIdDf.printSchema()"
+				],
+				"execution_count": 15
 			}
 		]
 	}
