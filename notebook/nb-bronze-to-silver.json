@@ -18,10 +18,10 @@
 			"numExecutors": 2,
 			"runAsWorkspaceSystemIdentity": false,
 			"conf": {
-				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.enabled": "true",
 				"spark.dynamicAllocation.minExecutors": "2",
-				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "5eadfbb0-cc32-4fcd-9f21-8ad2e8b1f142"
+				"spark.dynamicAllocation.maxExecutors": "6",
+				"spark.autotune.trackingId": "f375fe30-1406-4f28-b59f-6d97211955c8"
 			}
 		},
 		"metadata": {
@@ -70,7 +70,7 @@
 					"wasbPath = 'wasbs://%s@%s.blob.core.windows.net/%s' % (containerName, accountName, relativePath)\r\n",
 					"spark.conf.set('fs.azure.sas.%s.%s.blob.core.windows.net' % (containerName, accountName), sasToken)"
 				],
-				"execution_count": 1
+				"execution_count": 2
 			},
 			{
 				"cell_type": "markdown",
@@ -362,7 +362,7 @@
 					"\r\n",
 					"    return df_temp"
 				],
-				"execution_count": 2
+				"execution_count": 3
 			},
 			{
 				"cell_type": "code",
@@ -420,7 +420,7 @@
 					"\r\n",
 					"    return df"
 				],
-				"execution_count": 3
+				"execution_count": 4
 			},
 			{
 				"cell_type": "code",
@@ -437,6 +437,10 @@
 					"collapsed": false
 				},
 				"source": [
+					"from delta.tables import *\r\n",
+					"\r\n",
+					"spark.conf.set(\"spark.microsoft.delta.optimizeWrite.enabled\", \"true\")\r\n",
+					"\r\n",
 					"silverPath = \"abfss://silver@\" + accountName + \".dfs.core.windows.net/\" + relativePath\r\n",
 					"\r\n",
 					"patientDf = spark.read.json(\"abfss://bronze@\" + accountName + \".dfs.core.windows.net/reference_data/\" + relativePath + \"/*/Patient.ndjson\")\r\n",
