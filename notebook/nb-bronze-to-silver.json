@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "5ba0891d-873f-47dd-abd4-6a41a35fcea4"
+				"spark.autotune.trackingId": "a99fc233-fef2-4c69-9c71-9b744b413330"
 			}
 		},
 		"metadata": {
@@ -560,6 +560,81 @@
 					"display(df)"
 				],
 				"execution_count": 10
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"import datetime\r\n",
+					"\r\n",
+					"bronzePath = \"abfss://bronze@\" + accountName + \".dfs.core.windows.net/historic_data/\" + relativePath + \"/Observation/year=2021/\"\r\n",
+					"silverPath = \"abfss://silver@\" + accountName + \".dfs.core.windows.net/\" + relativePath\r\n",
+					"\r\n",
+					"startDate = datetime.datetime.strptime('2021-01-01', \"%Y-%m-%d\")\r\n",
+					"maxDate = datetime.datetime.strptime('2021-12-31', \"%Y-%m-%d\")\r\n",
+					"\r\n",
+					"observationSchemaFile = bronzePath + \"year=2021/\"\r\n",
+					"observationSchema = spark.read.option(\"mutiline\", \"true\").json(observationSchemaFile).schema\r\n",
+					"\r\n",
+					"df = spark.read.option(\"mutiline\", \"true\").schema(observationSchema).json(bronzePath)\r\n",
+					"#df = df.withColumn(\"year\", year(to_date(col(\"issued\"))))\r\n",
+					"#df = df.withColumn(\"month\", date_format(to_date(col(\"issued\")), 'MM'))\r\n",
+					"#df = df.withColumn(\"day\", date_format(to_date(col(\"issued\")), 'dd'))\r\n",
+					"\r\n",
+					"df = df.withColumn(\"subject\",regexp_replace(\"subject.reference\",\"Patient/\",\"\")).withColumn(\"encounter\",regexp_replace(\"encounter.reference\",\"Encounter/\",\"\"))\r\n",
+					"df = df.withColumnRenamed(\"id\",\"observation_id\")\r\n",
+					"df = df.withColumnRenamed(\"subject\",\"patient_id_reference\")\r\n",
+					"df = df.withColumnRenamed(\"encounter\",\"encounter_id_reference\")\r\n",
+					"\r\n",
+					"df = df.select(\r\n",
+					"    \"observation_id\",\"resourceType\",\"issued\",\"status\",\"patient_id_reference\",\"encounter_id_reference\",\"effectiveDateTime\",\r\n",
+					"    \"valueQuantity.code\",\"valueQuantity.system\",\"valueQuantity.unit\",\"valueQuantity.value\",\"valueString\",\"year\",\"month\",\"day\").toDF(*(\r\n",
+					"    \"observation_id\",\"resourceType\",\"issued\",\"status\",\"patient_id_reference\",\"encounter_id_reference\",\"effectiveDateTime\",\r\n",
+					"    \"valueQuantity_code\",\"valueQuantity_system\",\"valueQuantity_unit\",\"valueQuantity_value\",\"valueString\",\"year\",\"month\",\"day\"\r\n",
+					"    ))\r\n",
+					"\r\n",
+					"while startDate <= maxDate:\r\n",
+					"    #endDate = startDate + datetime.timedelta(days=7)\r\n",
+					"    month = startDate.strftime('%m')\r\n",
+					"    day = startDate.strftime('%d')\r\n",
+					"\r\n",
+					"    dfInner = df.where((df.month == month) & (df.day == day))\r\n",
+					"    dfInner.write.format(\"delta\").mode(\"append\").partitionBy(\"year\", \"month\", \"day\").save(silverPath + \"/Observation/\")\r\n",
+					"\r\n",
+					"    startDate = endDate + datetime.timedelta(days=1)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"df = spark.read.format(\"delta\").load(silverPath + \"/Patient_address\")\r\n",
+					"df2 = df.coalesce(5)\r\n",
+					"\r\n",
+					"df2.write.format(\"delta\").mode(\"overwrite\").save(silverPath + \"/Patient_address/\")"
+				],
+				"execution_count": 15
 			}
 		]
 	}
