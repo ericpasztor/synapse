@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "true",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "5",
-				"spark.autotune.trackingId": "a2045e35-f771-4510-a0a0-ea0bc65cae47"
+				"spark.autotune.trackingId": "9c358187-8817-4bf5-be52-1629cc4a61b6"
 			}
 		},
 		"metadata": {
@@ -56,7 +56,7 @@
 				"cell_type": "code",
 				"source": [
 					"from pyspark.sql.types import StructType\r\n",
-					"from pyspark.sql.functions import col, regexp_replace, explode, explode_outer, date_format, to_date, year\r\n",
+					"from pyspark.sql.functions import col, regexp_replace, explode, explode_outer, date_format, to_date, year, to_timestamp\r\n",
 					"from notebookutils import mssparkutils\r\n",
 					"from pyspark.sql import SparkSession\r\n",
 					"\r\n",
@@ -72,7 +72,7 @@
 					"wasbPath = 'wasbs://%s@%s.blob.core.windows.net/%s' % (containerName, accountName, relativePath)\r\n",
 					"spark.conf.set('fs.azure.sas.%s.%s.blob.core.windows.net' % (containerName, accountName), sasToken)"
 				],
-				"execution_count": 2
+				"execution_count": 23
 			},
 			{
 				"cell_type": "markdown",
@@ -617,7 +617,7 @@
 					"    dfInner = df.where((df.month == month) & (df.day == day))\r\n",
 					"    dfInner.write.format(\"delta\").mode(\"append\").partitionBy(\"year\", \"month\", \"day\").save(silverPath + \"/Observation/\")\r\n",
 					"\r\n",
-					"    startDate = endDate + datetime.timedelta(days=1)"
+					"    startDate = startDate + datetime.timedelta(days=1)"
 				],
 				"execution_count": null
 			},
@@ -680,22 +680,51 @@
 					}
 				},
 				"source": [
+					"import datetime\r\n",
+					"\r\n",
 					"startDate = datetime.datetime.strptime('2021-01-01', \"%Y-%m-%d\")\r\n",
 					"maxDate = datetime.datetime.strptime('2021-12-31', \"%Y-%m-%d\")\r\n",
 					"\r\n",
+					"bronzePath = \"abfss://bronze@\" + accountName + \".dfs.core.windows.net/incremental_data/\" + relativePath + \"/Observation/year=2021\"\r\n",
+					"silverPath = \"abfss://silver@\" + accountName + \".dfs.core.windows.net/\" + relativePath\r\n",
+					"\r\n",
+					"observationSchemaFile = bronzePath + \"/month=01/day=01\"\r\n",
+					"observationSchema = spark.read.option(\"mutiline\", \"true\").json(observationSchemaFile).schema\r\n",
+					"\r\n",
 					"while startDate <= maxDate:\r\n",
 					"    #endDate = startDate + datetime.timedelta(days=7)\r\n",
+					"    year = 2021\r\n",
 					"    month = startDate.strftime('%m')\r\n",
 					"    day = startDate.strftime('%d')\r\n",
 					"\r\n",
-					"    print(month + \" \" + day)\r\n",
+					"    print(\"Processing: \" + month + \" \" + day)\r\n",
 					"\r\n",
-					"  #  dfInner = df.where((df.month == month) & (df.day == day))\r\n",
-					"  #  dfInner.write.format(\"delta\").mode(\"append\").partitionBy(\"year\", \"month\", \"day\").save(silverPath + \"/Observation/\")\r\n",
+					"    df = spark.read.option(\"mutiline\", \"true\").schema(observationSchema).json(bronzePath + \"/month=\" + month)\r\n",
+					"    df = df.where(df.day == day)\r\n",
+					"    df = df.withColumn(\"year\", date_format(to_date(col(\"issued\")), 'y'))\r\n",
+					"    df = df.withColumn(\"year\", df.year.cast('int'))\r\n",
+					"    df = df.withColumn(\"month\", date_format(to_date(col(\"issued\")), 'MM'))\r\n",
+					"    df = df.withColumn(\"day\", date_format(to_date(col(\"issued\")), 'dd'))\r\n",
 					"\r\n",
-					"    startDate = endDate + datetime.timedelta(days=1)"
+					"    df = df.withColumn(\"subject\",regexp_replace(\"subject.reference\",\"Patient/\",\"\")).withColumn(\"encounter\",regexp_replace(\"encounter.reference\",\"Encounter/\",\"\"))\r\n",
+					"    df = df.withColumnRenamed(\"id\",\"observation_id\")\r\n",
+					"    df = df.withColumnRenamed(\"subject\",\"patient_id_reference\")\r\n",
+					"    df = df.withColumnRenamed(\"encounter\",\"encounter_id_reference\") \r\n",
+					"\r\n",
+					"    #dfDay = df.where(df.day == day)\r\n",
+					"\r\n",
+					"    dfFlat = df.select(\r\n",
+					"    \"observation_id\",\"resourceType\",\"issued\",\"status\",\"patient_id_reference\",\"encounter_id_reference\",\"effectiveDateTime\",\r\n",
+					"    \"valueQuantity.code\",\"valueQuantity.system\",\"valueQuantity.unit\",\"valueQuantity.value\",\"valueString\",\"year\",\"month\",\"day\").toDF(*(\r\n",
+					"    \"observation_id\",\"resourceType\",\"issued\",\"status\",\"patient_id_reference\",\"encounter_id_reference\",\"effectiveDateTime\",\r\n",
+					"    \"valueQuantity_code\",\"valueQuantity_system\",\"valueQuantity_unit\",\"valueQuantity_value\",\"valueString\",\"year\",\"month\",\"day\"\r\n",
+					"    ))\r\n",
+					"\r\n",
+					"    dfFlat.write.format(\"delta\").mode(\"append\").partitionBy(\"year\", \"month\").save(silverPath + \"/Observation_main/\")\r\n",
+					"\r\n",
+					"    startDate = startDate + datetime.timedelta(days=1)"
 				],
-				"execution_count": 6
+				"execution_count": 33
 			}
 		]
 	}
