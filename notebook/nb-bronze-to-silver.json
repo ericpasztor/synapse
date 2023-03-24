@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "a069e396-671e-41a7-9a9e-eaec3398dc16"
+				"spark.autotune.trackingId": "5ba0891d-873f-47dd-abd4-6a41a35fcea4"
 			}
 		},
 		"metadata": {
@@ -62,7 +62,7 @@
 					"\r\n",
 					"accountName = 'adlsfhirnonprod'\r\n",
 					"containerName = 'bronze'\r\n",
-					"relativePath = '1tb'\r\n",
+					"relativePath = '30tb'\r\n",
 					"linkedServiceName = 'lsadlsfhirnonprod'\r\n",
 					"\r\n",
 					"sasToken = mssparkutils.credentials.getConnectionStringOrCreds(linkedServiceName)\r\n",
@@ -70,7 +70,7 @@
 					"wasbPath = 'wasbs://%s@%s.blob.core.windows.net/%s' % (containerName, accountName, relativePath)\r\n",
 					"spark.conf.set('fs.azure.sas.%s.%s.blob.core.windows.net' % (containerName, accountName), sasToken)"
 				],
-				"execution_count": 5
+				"execution_count": 11
 			},
 			{
 				"cell_type": "markdown",
@@ -485,7 +485,7 @@
 					"\"communication_language_coding_code\",\r\n",
 					"\"communication_language_coding_display\",\r\n",
 					"\"communication_language_coding_system\").toDF(*(\r\n",
-					"\"patient_id\"\r\n",
+					"\"patient_id\",\r\n",
 					"\"birthDate\",\r\n",
 					"\"deceasedDateTime\",\r\n",
 					"\"gender\",\r\n",
@@ -539,7 +539,27 @@
 					"\r\n",
 					"patientExtensionDf.write.format(\"delta\").mode(\"overwrite\").save(silverPath + \"/Patient_extension/\")"
 				],
-				"execution_count": 4
+				"execution_count": 12
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"df = spark.read.format(\"delta\").load(silverPath + \"/Patient_address/\")\r\n",
+					"display(df)"
+				],
+				"execution_count": 10
 			}
 		]
 	}
