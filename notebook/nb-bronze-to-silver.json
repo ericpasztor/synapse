@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "true",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "6",
-				"spark.autotune.trackingId": "449001d6-2874-40a3-b578-f5b0b7e0d9e4"
+				"spark.autotune.trackingId": "6436f7b5-06d1-42b0-90a3-154ea49bf4d2"
 			}
 		},
 		"metadata": {
@@ -72,7 +72,7 @@
 					"wasbPath = 'wasbs://%s@%s.blob.core.windows.net/%s' % (containerName, accountName, relativePath)\r\n",
 					"spark.conf.set('fs.azure.sas.%s.%s.blob.core.windows.net' % (containerName, accountName), sasToken)"
 				],
-				"execution_count": 23
+				"execution_count": 1
 			},
 			{
 				"cell_type": "markdown",
@@ -619,18 +619,18 @@
 					"\r\n",
 					"#Observation Category\r\n",
 					"    dfFlatCategoryDf = df.select(\"observation_id\",\r\n",
-					"    explode(observationDf.category),\"year\",\"month\",\"day\").toDF(*(\"observation_id\",\"category\",\"year\",\"month\",\"day\"))\r\n",
+					"    explode(df.category),\"year\",\"month\",\"day\").toDF(*(\"observation_id\",\"category\",\"year\",\"month\",\"day\"))\r\n",
 					"\r\n",
 					"    dfFlatCategoryDf = dfFlatCategoryDf.select(\"observation_id\",\r\n",
-					"    explode(categoryDf.category.coding),\"year\",\"month\",\"day\").toDF(*(\"observation_id\",\"category\",\"year\",\"month\",\"day\"))    \r\n",
+					"    explode(dfFlatCategoryDf.category.coding),\"year\",\"month\",\"day\").toDF(*(\"observation_id\",\"category\",\"year\",\"month\",\"day\"))    \r\n",
 					"\r\n",
 					"    dfFlatCategoryDf = dfFlatCategoryDf.select(\"observation_id\",\"category.*\",\"year\",\"month\",\"day\").toDF(*(\r\n",
 					"    \"observation_id\",\"category_code\",\"category_display\",\"category_system\",\"year\",\"month\",\"day\"))\r\n",
 					"\r\n",
-					"    categoryDf.write.format(\"delta\").mode(\"append\").partitionBy(\"year\", \"month\").save(silverPath + \"/Observation_category/\")\r\n",
+					"    dfFlatCategoryDf.write.format(\"delta\").mode(\"append\").partitionBy(\"year\", \"month\").save(silverPath + \"/Observation_category/\")\r\n",
 					"\r\n",
 					"#Observation Code\r\n",
-					"    dfFlatCodeDf = df.select(\"observation_id\",\"code.text\",explode(observationDf.code.coding),\"year\",\"month\",\"day\").toDF(*(\"observation_id\",\"text\",\"coding\",\"year\",\"month\",\"day\"))\r\n",
+					"    dfFlatCodeDf = df.select(\"observation_id\",\"code.text\",explode(df.code.coding),\"year\",\"month\",\"day\").toDF(*(\"observation_id\",\"text\",\"coding\",\"year\",\"month\",\"day\"))\r\n",
 					"\r\n",
 					"    dfFlatCodeDf = dfFlatCodeDf.select(\"observation_id\",\"text\",\"coding.*\",\"year\",\"month\",\"day\").toDF(*(\r\n",
 					"    \"Observation_id\",\"code_text\",\"coding_code\",\"coding_display\",\"coding_system\",\"year\",\"month\",\"day\"))\r\n",
@@ -638,9 +638,9 @@
 					"    dfFlatCodeDf.write.format(\"delta\").mode(\"append\").partitionBy(\"year\", \"month\").save(silverPath + \"/Observation_code/\")\r\n",
 					"\r\n",
 					"#Observation Component\r\n",
-					"    dfFlatComponentDf = df.select(\"Observation_id\",explode(observationDf.component),\"year\",\"month\",\"day\")\r\n",
+					"    dfFlatComponentDf = df.select(\"Observation_id\",explode(df.component),\"year\",\"month\",\"day\")\r\n",
 					"\r\n",
-					"    dfFlatComponentDf = dfFlatComponentDf.select(\"observation_id\",explode_outer(componentDf.col.code.coding),\"col.code.text\",\r\n",
+					"    dfFlatComponentDf = dfFlatComponentDf.select(\"observation_id\",explode_outer(dfFlatComponentDf.col.code.coding),\"col.code.text\",\r\n",
 					"    \"col.valueQuantity.code\",\"col.valueQuantity.system\",\"col.valueQuantity.unit\",\"col.valueQuantity.value\",\"year\",\"month\",\"day\").toDF(*(\"observation_id\",\"component_code\",\"component_text\",\r\n",
 					"    \"component_valueQuantity_code\",\"component_valueQuantity_system\",\"component_valueQuantity_unit\",\"component_valueQuantity_value\",\"year\",\"month\",\"day\"))   \r\n",
 					"\r\n",
@@ -652,7 +652,7 @@
 					"    dfFlatComponentDf.write.format(\"delta\").mode(\"append\").partitionBy(\"year\", \"month\").save(silverPath + \"/Observation_component/\")\r\n",
 					"\r\n",
 					"#Observation Value Codeable Concept\r\n",
-					"    dfFlatValueDf = df.select(\"observation_id\",explode(observationDf.valueCodeableConcept.coding),\"valueCodeableConcept.text\",\"year\",\"month\",\"day\").toDF(*(\r\n",
+					"    dfFlatValueDf = df.select(\"observation_id\",explode(df.valueCodeableConcept.coding),\"valueCodeableConcept.text\",\"year\",\"month\",\"day\").toDF(*(\r\n",
 					"        \"observation_id\",\"coding\",\"valueCodeableConcept_text\",\"year\",\"month\",\"day\"))\r\n",
 					"\r\n",
 					"    dfFlatValueDf = dfFlatValueDf.select(\"observation_id\",\"coding.*\",\"valueCodeableConcept_text\",\"year\",\"month\",\"day\").toDF(*(\r\n",
@@ -662,7 +662,7 @@
 					"\r\n",
 					"    startDate = startDate + datetime.timedelta(days=1)"
 				],
-				"execution_count": 33
+				"execution_count": 5
 			}
 		]
 	}
