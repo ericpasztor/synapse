@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "true",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "6",
-				"spark.autotune.trackingId": "cc272b49-e520-44ff-836a-385194badf53"
+				"spark.autotune.trackingId": "7736d6b2-be9c-4d3b-8a2f-9704f34a7dbc"
 			}
 		},
 		"metadata": {
@@ -64,7 +64,7 @@
 					"\r\n",
 					"accountName = 'adlsfhirnonprod'\r\n",
 					"containerName = 'bronze'\r\n",
-					"relativePath = '1tb'\r\n",
+					"relativePath = '30tb'\r\n",
 					"linkedServiceName = 'lsadlsfhirnonprod'\r\n",
 					"\r\n",
 					"sasToken = mssparkutils.credentials.getConnectionStringOrCreds(linkedServiceName)\r\n",
@@ -72,7 +72,7 @@
 					"wasbPath = 'wasbs://%s@%s.blob.core.windows.net/%s' % (containerName, accountName, relativePath)\r\n",
 					"spark.conf.set('fs.azure.sas.%s.%s.blob.core.windows.net' % (containerName, accountName), sasToken)"
 				],
-				"execution_count": 1
+				"execution_count": 6
 			},
 			{
 				"cell_type": "markdown",
@@ -577,7 +577,7 @@
 					"import datetime\r\n",
 					"\r\n",
 					"startDate = datetime.datetime.strptime('2021-01-01', \"%Y-%m-%d\")\r\n",
-					"maxDate = datetime.datetime.strptime('2021-06-30', \"%Y-%m-%d\")\r\n",
+					"maxDate = datetime.datetime.strptime('2021-12-31', \"%Y-%m-%d\")\r\n",
 					"\r\n",
 					"bronzePath = \"abfss://bronze@\" + accountName + \".dfs.core.windows.net/incremental_data/\" + relativePath + \"/Observation/year=2021\"\r\n",
 					"silverPath = \"abfss://silver@\" + accountName + \".dfs.core.windows.net/\" + relativePath\r\n",
@@ -661,7 +661,7 @@
 					"\r\n",
 					"    startDate = startDate + datetime.timedelta(days=1)"
 				],
-				"execution_count": 5
+				"execution_count": 7
 			}
 		]
 	}
