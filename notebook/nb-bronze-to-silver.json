@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "true",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "6",
-				"spark.autotune.trackingId": "5c205cd5-7d9e-47b0-8736-a9d93e3c8e44"
+				"spark.autotune.trackingId": "7b27b7c7-8657-4839-a4d6-d4d06a9c792d"
 			}
 		},
 		"metadata": {
@@ -691,6 +691,8 @@
 				},
 				"source": [
 					"import datetime\r\n",
+					"\r\n",
+					"spark.conf.set(\"spark.microsoft.delta.optimizeWrite.enabled\", \"true\")\r\n",
 					"\r\n",
 					"startDate = datetime.datetime.strptime('2021-01-01', \"%Y-%m-%d\")\r\n",
 					"maxDate = datetime.datetime.strptime('2021-12-31', \"%Y-%m-%d\")\r\n",
