@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "true",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "6",
-				"spark.autotune.trackingId": "7736d6b2-be9c-4d3b-8a2f-9704f34a7dbc"
+				"spark.autotune.trackingId": "5c205cd5-7d9e-47b0-8736-a9d93e3c8e44"
 			}
 		},
 		"metadata": {
@@ -557,7 +557,7 @@
 					}
 				},
 				"source": [
-					"## Incremental Load (Observation, Claim Tables) 2021"
+					"## Incremental Load (Observation Tables) 2021"
 				]
 			},
 			{
@@ -662,6 +662,113 @@
 					"    startDate = startDate + datetime.timedelta(days=1)"
 				],
 				"execution_count": 7
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Incremental Load (Claim Tables) 2021"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"import datetime\r\n",
+					"\r\n",
+					"startDate = datetime.datetime.strptime('2021-01-01', \"%Y-%m-%d\")\r\n",
+					"maxDate = datetime.datetime.strptime('2021-12-31', \"%Y-%m-%d\")\r\n",
+					"\r\n",
+					"bronzePath = \"abfss://bronze@\" + accountName + \".dfs.core.windows.net/incremental_data/\" + relativePath + \"/Claim/year=2021\"\r\n",
+					"silverPath = \"abfss://silver@\" + accountName + \".dfs.core.windows.net/\" + relativePath\r\n",
+					"\r\n",
+					"claimSchemaFile = bronzePath + \"/month=01/day=01\"\r\n",
+					"claimSchema = spark.read.option(\"mutiline\", \"true\").json(claimSchemaFile).schema\r\n",
+					"\r\n",
+					"while startDate <= maxDate:\r\n",
+					"    #endDate = startDate + datetime.timedelta(days=7)\r\n",
+					"    year = 2021\r\n",
+					"    month = startDate.strftime('%m')\r\n",
+					"    day = startDate.strftime('%d')\r\n",
+					"\r\n",
+					"    print(\"Processing: \" + month + \" \" + day)\r\n",
+					"\r\n",
+					"    df = spark.read.option(\"mutiline\", \"true\").schema(claimSchema).json(bronzePath + \"/month=\" + month)\r\n",
+					"    df = df.where(df.day == day)\r\n",
+					"    df = df.withColumn(\"year\", date_format(to_date(col(\"created\")), 'y'))\r\n",
+					"    df = df.withColumn(\"year\", df.year.cast('int'))\r\n",
+					"    df = df.withColumn(\"month\", date_format(to_date(col(\"created\")), 'MM'))\r\n",
+					"    df = df.withColumn(\"day\", date_format(to_date(col(\"created\")), 'dd'))\r\n",
+					"\r\n",
+					"    #Main\r\n",
+					"    claimMainDf = df.select(\r\n",
+					"        \"id\",\"resourceType\",\"status\",\"billablePeriod.end\",\"billablePeriod.start\",\"created\",\"patient.display\",\"patient.reference\",\r\n",
+					"        \"prescription.reference\",\"provider.display\",\"provider.reference\",\"total.currency\",\"total.value\",\"use\",\"year\",\"month\",\"day\")\r\n",
+					"\r\n",
+					"    claimMainDf = claimMainDf.toDF(*( \r\n",
+					"        \"claim_id\",\"resourceType\",\"status\",\"billablePeriod_end\",\"billablePeriod_start\",\"created\",\r\n",
+					"        \"patient_display\",\"patient_id_reference\",\r\n",
+					"        \"prescription_reference\",\"provider_display\",\"provider_org_id_reference\",\"total_currency\",\"total_value\",\"use\",\"year\",\"month\",\"day\"))\r\n",
+					"\r\n",
+					"    claimMainDf = claimMainDf.withColumn(\"patient_id_reference\",regexp_replace(\"patient_id_reference\",\"Patient/\",\"\")).withColumn(\r\n",
+					"        \"provider_org_id_reference\",regexp_replace(\"provider_org_id_reference\",\"Organization/\",\"\"))\r\n",
+					"\r\n",
+					"    claimMainDf.write.format(\"delta\").mode(\"append\").partitionBy(\"year\", \"month\").save(silverPath + \"/Claim_main/\")\r\n",
+					"\r\n",
+					"    #Insurance\r\n",
+					"    claimInsuranceDf = df.select(\"id\", explode(df.insurance),\"year\",\"month\",\"day\")\r\n",
+					"\r\n",
+					"    claimInsuranceDf = claimInsuranceDf.toDF(*(\"claim_id\",\"insurance\"),\"year\",\"month\",\"day\")\r\n",
+					"\r\n",
+					"    claimInsuranceDf = claimInsuranceDf.select(\r\n",
+					"        \"claim_id\",\"insurance.coverage.display\",\"insurance.focal\",\"insurance.sequence\",\"year\",\"month\",\"day\").toDF(*\r\n",
+					"        (\"claim_id\",\"insurance_coverage.display\",\"insurance_focal\",\"insurance_sequence\",\"year\",\"month\",\"day\"))\r\n",
+					"\r\n",
+					"    claimInsuranceDf.write.format(\"delta\").mode(\"append\").partitionBy(\"year\", \"month\").save(silverPath + \"/Claim_insurance/\")\r\n",
+					"\r\n",
+					"    #Diagnosis\r\n",
+					"    claimDiagnosisDf = df.select(\"id\", explode(df.diagnosis),\"year\",\"month\",\"day\")\r\n",
+					"\r\n",
+					"    claimDiagnosisDf = claimDiagnosisDf.toDF(*(\"id\", \"diagnosis\",\"year\",\"month\",\"day\"))\r\n",
+					"\r\n",
+					"    claimDiagnosisDf = claimDiagnosisDf.select(\"id\",\"diagnosis.diagnosisReference.reference\",\"diagnosis.sequence\",\"year\",\"month\",\"day\").toDF(*(  \r\n",
+					"        \"claim_id\",\"diagnosis_reference\",\"diagnosis_sequence\",\"year\",\"month\",\"day\"))\r\n",
+					"\r\n",
+					"    claimDiagnosisDf = claimDiagnosisDf.withColumn(\"diagnosis_reference\",regexp_replace(\"diagnosis_reference\",\"Condition/\",\"\"))\r\n",
+					"\r\n",
+					"    claimDiagnosisDf.write.format(\"delta\").mode(\"append\").partitionBy(\"year\", \"month\").save(silverPath + \"/Claim_diagnosis/\")\r\n",
+					"\r\n",
+					"    #Procedure\r\n",
+					"    claimProcedureDf = df.select(\"id\",explode(df.procedure),\"year\",\"month\",\"day\")\r\n",
+					"\r\n",
+					"    claimProcedureDf = claimProcedureDf.toDF(*(\"id\",\"procedure\"),\"year\",\"month\",\"day\")\r\n",
+					"\r\n",
+					"    claimProcedureDf = claimProcedureDf.select(\"id\",\"procedure.procedureReference.reference\",\"procedure.sequence\",\"year\",\"month\",\"day\").toDF(*(\r\n",
+					"        \"claim_id\",\"procedure_reference\",\"procedure_sequence\",\"year\",\"month\",\"day\"))\r\n",
+					"\r\n",
+					"    claimProcedureDf = claimProcedureDf.withColumn(\"procedure_reference\",regexp_replace(\"procedure_reference\",\"Procedure/\",\"\"))\r\n",
+					"\r\n",
+					"    claimProcedureDf.write.format(\"delta\").mode(\"append\").partitionBy(\"year\", \"month\").save(silverPath + \"/Claim_procedure/\")\r\n",
+					"\r\n",
+					"    startDate = startDate + datetime.timedelta(days=1)"
+				],
+				"execution_count": null
 			}
 		]
 	}
