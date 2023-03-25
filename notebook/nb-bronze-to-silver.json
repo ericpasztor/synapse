@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "true",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "6",
-				"spark.autotune.trackingId": "efe5ecf5-69df-481f-a8fb-983450b8aae4"
+				"spark.autotune.trackingId": "a33a1a38-10dd-4d6c-ba11-307315ae3cf2"
 			}
 		},
 		"metadata": {
@@ -607,15 +607,14 @@
 					"\r\n",
 					"    #dfDay = df.where(df.day == day)\r\n",
 					"\r\n",
-					"    #Observation Main\r\n",
-					"    #dfFlatObsMain = df.select(\r\n",
-					"    #\"observation_id\",\"resourceType\",\"issued\",\"status\",\"patient_id_reference\",\"encounter_id_reference\",\"effectiveDateTime\",\r\n",
-					"    #\"valueQuantity.code\",\"valueQuantity.system\",\"valueQuantity.unit\",\"valueQuantity.value\",\"valueString\",\"year\",\"month\",\"day\").toDF(*(\r\n",
-					"    #\"observation_id\",\"resourceType\",\"issued\",\"status\",\"patient_id_reference\",\"encounter_id_reference\",\"effectiveDateTime\",\r\n",
-					"    #\"valueQuantity_code\",\"valueQuantity_system\",\"valueQuantity_unit\",\"valueQuantity_value\",\"valueString\",\"year\",\"month\",\"day\"\r\n",
-					"    #))\r\n",
+					"    Observation Main\r\n",
+					"    dfFlatObsMain = df.select(\"observation_id\",\"resourceType\",\"issued\",\"status\",\"patient_id_reference\",\"encounter_id_reference\",\"effectiveDateTime\",\r\n",
+					"    \"valueQuantity.code\",\"valueQuantity.system\",\"valueQuantity.unit\",\"valueQuantity.value\",\"valueString\",\"year\",\"month\",\"day\").toDF(*(\r\n",
+					"    \"observation_id\",\"resourceType\",\"issued\",\"status\",\"patient_id_reference\",\"encounter_id_reference\",\"effectiveDateTime\",\r\n",
+					"    \"valueQuantity_code\",\"valueQuantity_system\",\"valueQuantity_unit\",\"valueQuantity_value\",\"valueString\",\"year\",\"month\",\"day\"\r\n",
+					"    ))\r\n",
 					"\r\n",
-					"    #dfFlatObsMain.write.format(\"delta\").mode(\"append\").partitionBy(\"year\", \"month\").save(silverPath + \"/Observation_main/\")\r\n",
+					"    dfFlatObsMain.write.format(\"delta\").mode(\"append\").partitionBy(\"year\", \"month\").save(silverPath + \"/Observation_main/\")\r\n",
 					"\r\n",
 					"#Observation Category\r\n",
 					"    dfFlatCategoryDf = df.select(\"observation_id\",\r\n",
