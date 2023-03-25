@@ -20,8 +20,8 @@
 			"conf": {
 				"spark.dynamicAllocation.enabled": "true",
 				"spark.dynamicAllocation.minExecutors": "2",
-				"spark.dynamicAllocation.maxExecutors": "5",
-				"spark.autotune.trackingId": "17785eb8-9183-4fe0-bb90-7708be643e21"
+				"spark.dynamicAllocation.maxExecutors": "6",
+				"spark.autotune.trackingId": "449001d6-2874-40a3-b578-f5b0b7e0d9e4"
 			}
 		},
 		"metadata": {
@@ -548,32 +548,8 @@
 				"execution_count": 5
 			},
 			{
-				"cell_type": "code",
+				"cell_type": "markdown",
 				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"collapsed": false
-				},
-				"source": [
-					"df = spark.read.format(\"delta\").load(silverPath + \"/Patient_address/\")\r\n",
-					"display(df)"
-				],
-				"execution_count": 10
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
 					"nteract": {
 						"transient": {
 							"deleting": false
@@ -581,90 +557,8 @@
 					}
 				},
 				"source": [
-					"import datetime\r\n",
-					"\r\n",
-					"bronzePath = \"abfss://bronze@\" + accountName + \".dfs.core.windows.net/historic_data/\" + relativePath + \"/Observation/year=2021/\"\r\n",
-					"silverPath = \"abfss://silver@\" + accountName + \".dfs.core.windows.net/\" + relativePath\r\n",
-					"\r\n",
-					"startDate = datetime.datetime.strptime('2021-01-01', \"%Y-%m-%d\")\r\n",
-					"maxDate = datetime.datetime.strptime('2021-12-31', \"%Y-%m-%d\")\r\n",
-					"\r\n",
-					"observationSchemaFile = bronzePath + \"year=2021/\"\r\n",
-					"observationSchema = spark.read.option(\"mutiline\", \"true\").json(observationSchemaFile).schema\r\n",
-					"\r\n",
-					"df = spark.read.option(\"mutiline\", \"true\").schema(observationSchema).json(bronzePath)\r\n",
-					"#df = df.withColumn(\"year\", year(to_date(col(\"issued\"))))\r\n",
-					"#df = df.withColumn(\"month\", date_format(to_date(col(\"issued\")), 'MM'))\r\n",
-					"#df = df.withColumn(\"day\", date_format(to_date(col(\"issued\")), 'dd'))\r\n",
-					"\r\n",
-					"df = df.withColumn(\"subject\",regexp_replace(\"subject.reference\",\"Patient/\",\"\")).withColumn(\"encounter\",regexp_replace(\"encounter.reference\",\"Encounter/\",\"\"))\r\n",
-					"df = df.withColumnRenamed(\"id\",\"observation_id\")\r\n",
-					"df = df.withColumnRenamed(\"subject\",\"patient_id_reference\")\r\n",
-					"df = df.withColumnRenamed(\"encounter\",\"encounter_id_reference\")\r\n",
-					"\r\n",
-					"df = df.select(\r\n",
-					"    \"observation_id\",\"resourceType\",\"issued\",\"status\",\"patient_id_reference\",\"encounter_id_reference\",\"effectiveDateTime\",\r\n",
-					"    \"valueQuantity.code\",\"valueQuantity.system\",\"valueQuantity.unit\",\"valueQuantity.value\",\"valueString\",\"year\",\"month\",\"day\").toDF(*(\r\n",
-					"    \"observation_id\",\"resourceType\",\"issued\",\"status\",\"patient_id_reference\",\"encounter_id_reference\",\"effectiveDateTime\",\r\n",
-					"    \"valueQuantity_code\",\"valueQuantity_system\",\"valueQuantity_unit\",\"valueQuantity_value\",\"valueString\",\"year\",\"month\",\"day\"\r\n",
-					"    ))\r\n",
-					"\r\n",
-					"while startDate <= maxDate:\r\n",
-					"    #endDate = startDate + datetime.timedelta(days=7)\r\n",
-					"    month = startDate.strftime('%m')\r\n",
-					"    day = startDate.strftime('%d')\r\n",
-					"\r\n",
-					"    dfInner = df.where((df.month == month) & (df.day == day))\r\n",
-					"    dfInner.write.format(\"delta\").mode(\"append\").partitionBy(\"year\", \"month\", \"day\").save(silverPath + \"/Observation/\")\r\n",
-					"\r\n",
-					"    startDate = startDate + datetime.timedelta(days=1)"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"df = spark.read.format(\"delta\").load(silverPath + \"/Patient_address\")\r\n",
-					"df2 = df.coalesce(5)\r\n",
-					"\r\n",
-					"df2.write.format(\"delta\").mode(\"overwrite\").save(silverPath + \"/Patient_address/\")"
-				],
-				"execution_count": 15
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"from delta.tables import *\r\n",
-					"\r\n",
-					"spark.conf.set(\"spark.microsoft.delta.optimizeWrite.enabled\", \"true\")\r\n",
-					"\r\n",
-					"deltaTable = DeltaTable.forPath(spark, 'abfss://silver@adlsfhirnonprod.dfs.core.windows.net/30tb/Patient_address/')\r\n",
-					"\r\n",
-					"deltaTable.vacuum()"
-				],
-				"execution_count": 5
+					"## Incremental Load (Observation, Claim Tables) 2021"
+				]
 			},
 			{
 				"cell_type": "code",
@@ -683,7 +577,7 @@
 					"import datetime\r\n",
 					"\r\n",
 					"startDate = datetime.datetime.strptime('2021-01-01', \"%Y-%m-%d\")\r\n",
-					"maxDate = datetime.datetime.strptime('2021-12-31', \"%Y-%m-%d\")\r\n",
+					"maxDate = datetime.datetime.strptime('2021-06-30', \"%Y-%m-%d\")\r\n",
 					"\r\n",
 					"bronzePath = \"abfss://bronze@\" + accountName + \".dfs.core.windows.net/incremental_data/\" + relativePath + \"/Observation/year=2021\"\r\n",
 					"silverPath = \"abfss://silver@\" + accountName + \".dfs.core.windows.net/\" + relativePath\r\n",
@@ -713,14 +607,58 @@
 					"\r\n",
 					"    #dfDay = df.where(df.day == day)\r\n",
 					"\r\n",
-					"    dfFlat = df.select(\r\n",
-					"    \"observation_id\",\"resourceType\",\"issued\",\"status\",\"patient_id_reference\",\"encounter_id_reference\",\"effectiveDateTime\",\r\n",
-					"    \"valueQuantity.code\",\"valueQuantity.system\",\"valueQuantity.unit\",\"valueQuantity.value\",\"valueString\",\"year\",\"month\",\"day\").toDF(*(\r\n",
-					"    \"observation_id\",\"resourceType\",\"issued\",\"status\",\"patient_id_reference\",\"encounter_id_reference\",\"effectiveDateTime\",\r\n",
-					"    \"valueQuantity_code\",\"valueQuantity_system\",\"valueQuantity_unit\",\"valueQuantity_value\",\"valueString\",\"year\",\"month\",\"day\"\r\n",
-					"    ))\r\n",
+					"    #Observation Main\r\n",
+					"    #dfFlatObsMain = df.select(\r\n",
+					"    #\"observation_id\",\"resourceType\",\"issued\",\"status\",\"patient_id_reference\",\"encounter_id_reference\",\"effectiveDateTime\",\r\n",
+					"    #\"valueQuantity.code\",\"valueQuantity.system\",\"valueQuantity.unit\",\"valueQuantity.value\",\"valueString\",\"year\",\"month\",\"day\").toDF(*(\r\n",
+					"    #\"observation_id\",\"resourceType\",\"issued\",\"status\",\"patient_id_reference\",\"encounter_id_reference\",\"effectiveDateTime\",\r\n",
+					"    #\"valueQuantity_code\",\"valueQuantity_system\",\"valueQuantity_unit\",\"valueQuantity_value\",\"valueString\",\"year\",\"month\",\"day\"\r\n",
+					"    #))\r\n",
 					"\r\n",
-					"    dfFlat.write.format(\"delta\").mode(\"append\").partitionBy(\"year\", \"month\").save(silverPath + \"/Observation_main/\")\r\n",
+					"    #dfFlatObsMain.write.format(\"delta\").mode(\"append\").partitionBy(\"year\", \"month\").save(silverPath + \"/Observation_main/\")\r\n",
+					"\r\n",
+					"#Observation Category\r\n",
+					"    dfFlatCategoryDf = df.select(\"observation_id\",\r\n",
+					"    explode(observationDf.category),\"year\",\"month\",\"day\").toDF(*(\"observation_id\",\"category\",\"year\",\"month\",\"day\"))\r\n",
+					"\r\n",
+					"    dfFlatCategoryDf = dfFlatCategoryDf.select(\"observation_id\",\r\n",
+					"    explode(categoryDf.category.coding),\"year\",\"month\",\"day\").toDF(*(\"observation_id\",\"category\",\"year\",\"month\",\"day\"))    \r\n",
+					"\r\n",
+					"    dfFlatCategoryDf = dfFlatCategoryDf.select(\"observation_id\",\"category.*\",\"year\",\"month\",\"day\").toDF(*(\r\n",
+					"    \"observation_id\",\"category_code\",\"category_display\",\"category_system\",\"year\",\"month\",\"day\"))\r\n",
+					"\r\n",
+					"    categoryDf.write.format(\"delta\").mode(\"append\").partitionBy(\"year\", \"month\").save(silverPath + \"/Observation_category/\")\r\n",
+					"\r\n",
+					"#Observation Code\r\n",
+					"    dfFlatCodeDf = df.select(\"observation_id\",\"code.text\",explode(observationDf.code.coding),\"year\",\"month\",\"day\").toDF(*(\"observation_id\",\"text\",\"coding\",\"year\",\"month\",\"day\"))\r\n",
+					"\r\n",
+					"    dfFlatCodeDf = dfFlatCodeDf.select(\"observation_id\",\"text\",\"coding.*\",\"year\",\"month\",\"day\").toDF(*(\r\n",
+					"    \"Observation_id\",\"code_text\",\"coding_code\",\"coding_display\",\"coding_system\",\"year\",\"month\",\"day\"))\r\n",
+					"\r\n",
+					"    dfFlatCodeDf.write.format(\"delta\").mode(\"append\").partitionBy(\"year\", \"month\").save(silverPath + \"/Observation_code/\")\r\n",
+					"\r\n",
+					"#Observation Component\r\n",
+					"    dfFlatComponentDf = df.select(\"Observation_id\",explode(observationDf.component),\"year\",\"month\",\"day\")\r\n",
+					"\r\n",
+					"    dfFlatComponentDf = dfFlatComponentDf.select(\"observation_id\",explode_outer(componentDf.col.code.coding),\"col.code.text\",\r\n",
+					"    \"col.valueQuantity.code\",\"col.valueQuantity.system\",\"col.valueQuantity.unit\",\"col.valueQuantity.value\",\"year\",\"month\",\"day\").toDF(*(\"observation_id\",\"component_code\",\"component_text\",\r\n",
+					"    \"component_valueQuantity_code\",\"component_valueQuantity_system\",\"component_valueQuantity_unit\",\"component_valueQuantity_value\",\"year\",\"month\",\"day\"))   \r\n",
+					"\r\n",
+					"    dfFlatComponentDf = dfFlatComponentDf.select(\"observation_id\",\"component_code.*\",\"component_text\",\r\n",
+					"    \"component_valueQuantity_code\",\"component_valueQuantity_system\",\"component_valueQuantity_unit\",\"component_valueQuantity_value\",\"year\",\"month\",\"day\").toDF(*(\"observation_id\",\"component_code\",\r\n",
+					"    \"component_display\",\"component_system\",\"component_text\",\r\n",
+					"    \"component_valueQuantity_code\",\"component_valueQuantity_system\",\"component_valueQuantity_unit\",\"component_valueQuantity_value\",\"year\",\"month\",\"day\"))\r\n",
+					"\r\n",
+					"    dfFlatComponentDf.write.format(\"delta\").mode(\"append\").partitionBy(\"year\", \"month\").save(silverPath + \"/Observation_component/\")\r\n",
+					"\r\n",
+					"#Observation Value Codeable Concept\r\n",
+					"    dfFlatValueDf = df.select(\"observation_id\",explode(observationDf.valueCodeableConcept.coding),\"valueCodeableConcept.text\",\"year\",\"month\",\"day\").toDF(*(\r\n",
+					"        \"observation_id\",\"coding\",\"valueCodeableConcept_text\",\"year\",\"month\",\"day\"))\r\n",
+					"\r\n",
+					"    dfFlatValueDf = dfFlatValueDf.select(\"observation_id\",\"coding.*\",\"valueCodeableConcept_text\",\"year\",\"month\",\"day\").toDF(*(\r\n",
+					"        \"observation_id\",\"valueCodeableConcept_code\", \"valueCodeableConcept_display\",\"valueCodeableConcept_system\",\"valueCodeableConcept_text\",\"year\",\"month\",\"day\"))\r\n",
+					"\r\n",
+					"    dfFlatValueDf.write.format(\"delta\").mode(\"append\").partitionBy(\"year\", \"month\").save(silverPath + \"/Observation_valueCodeableConcept/\")\r\n",
 					"\r\n",
 					"    startDate = startDate + datetime.timedelta(days=1)"
 				],
