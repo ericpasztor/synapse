@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "true",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "6",
-				"spark.autotune.trackingId": "e1b891c8-e605-47d6-b91f-2117845c7f85"
+				"spark.autotune.trackingId": "6dd8fd61-186c-424b-bfd1-b6c2eb16e44f"
 			}
 		},
 		"metadata": {
@@ -64,7 +64,7 @@
 					"\r\n",
 					"accountName = 'adlsfhirnonprod'\r\n",
 					"containerName = 'bronze'\r\n",
-					"relativePath = '30tb'\r\n",
+					"relativePath = '1tb'\r\n",
 					"linkedServiceName = 'lsadlsfhirnonprod'\r\n",
 					"\r\n",
 					"sasToken = mssparkutils.credentials.getConnectionStringOrCreds(linkedServiceName)\r\n",
@@ -72,7 +72,7 @@
 					"wasbPath = 'wasbs://%s@%s.blob.core.windows.net/%s' % (containerName, accountName, relativePath)\r\n",
 					"spark.conf.set('fs.azure.sas.%s.%s.blob.core.windows.net' % (containerName, accountName), sasToken)"
 				],
-				"execution_count": 6
+				"execution_count": 1
 			},
 			{
 				"cell_type": "markdown",
