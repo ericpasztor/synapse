@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "2a1247fe-39e4-4b4b-aedf-ad41cb066296"
+				"spark.autotune.trackingId": "c013cb18-7925-4582-b114-36614a88aa12"
 			}
 		},
 		"metadata": {
@@ -159,6 +159,82 @@
 					"\r\n",
 					"DROP TABLE IF EXISTS silver.claimProcedure;\r\n",
 					"CREATE TABLE silver.claimProcedure USING DELTA LOCATION '${claimProcedurePath}';"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					}
+				},
+				"source": [
+					"%%sql\r\n",
+					"CREATE DATABASE SCOPED CREDENTIAL sqlondemand\r\n",
+					"WITH IDENTITY='SHARED ACCESS SIGNATURE',  \r\n",
+					"SECRET = 'sv=2018-03-28&ss=bf&srt=sco&sp=rl&st=2019-10-14T12%3A10%3A25Z&se=2061-12-31T12%3A10%3A00Z&sig=KlSU2ullCscyTS0An0nozEpo4tO5JAgGBvw%2FJX2lguw%3D'"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					}
+				},
+				"source": [
+					"%%sql\r\n",
+					"CREATE EXTERNAL DATA SOURCE silverPath\r\n",
+					"WITH ( location = 'https://adlsfhirnonprod.dfs.core.windows.net/silver/30tb/' );"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					}
+				},
+				"source": [
+					"%%sql\r\n",
+					"CREATE OR ALTER VIEW claimDiagnosisView \r\n",
+					"AS SELECT *\r\n",
+					"FROM  \r\n",
+					"    OPENROWSET(\r\n",
+					"        BULK 'Claim_diagnosis',\r\n",
+					"        DATA_SOURCE = 'silverPath',\r\n",
+					"        FORMAT='DELTA'\r\n",
+					"    ) claimDiagnosis"
 				],
 				"execution_count": null
 			}
