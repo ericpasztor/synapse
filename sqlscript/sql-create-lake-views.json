@@ -2,12 +2,12 @@
 	"name": "sql-create-lake-views",
 	"properties": {
 		"content": {
-			"query": "CREATE DATABASE SCOPED CREDENTIAL sqlondemand\nWITH IDENTITY='SHARED ACCESS SIGNATURE',\nSECRET = 'sv=2018-03-28&ss=bf&srt=sco&sp=rl&st=2019-10-14T12%3A10%3A25Z&se=2061-12-31T12%3A10%3A00Z&sig=KlSU2ullCscyTS0An0nozEpo4tO5JAgGBvw%2FJX2lguw%3D';\n\n\nCREATE EXTERNAL DATA SOURCE silverPath\nWITH ( location = 'https://adlsfhirnonprod.dfs.core.windows.net/silver/30tb/' );\n\n\nCREATE VIEW claimDiagnosisView \nAS SELECT *\nFROM  \n    OPENROWSET(\n        BULK 'Claim_diagnosis',\n        DATA_SOURCE = 'silverPath',\n        FORMAT='DELTA'\n    ) claimDiagnosis;\n\nCREATE VIEW claimDiagnosisView \nAS SELECT *\nFROM  \n    OPENROWSET(\n        BULK 'Claim_diagnosis',\n        DATA_SOURCE = 'silverPath',\n        FORMAT='DELTA'\n    ) claimDiagnosis;",
+			"query": "CREATE DATABASE SCOPED CREDENTIAL sqlondemand\nWITH IDENTITY='SHARED ACCESS SIGNATURE',\nSECRET = 'sv=2021-12-02&ss=bfqt&srt=co&sp=rwdlacupyx&se=2023-03-29T06:55:30Z&st=2023-03-28T22:55:30Z&spr=https&sig=U9fLj%2FrFYGCcXQDSnV0FD%2Fsy%2BbBvrVLl4dUOgf55PaY%3D';\n\n--sp=r&st=2023-03-28T22:53:47Z&se=2023-04-30T06:53:47Z&spr=https&sv=2021-12-02&sr=c&sig=pamDtShG6qEZ5kK0QewFHqnypcQZYYj8RcD9f7Yk3H0%3D\n--https://adlsfhirnonprod.blob.core.windows.net/silver?sp=r&st=2023-03-28T22:53:47Z&se=2023-04-30T06:53:47Z&spr=https&sv=2021-12-02&sr=c&sig=pamDtShG6qEZ5kK0QewFHqnypcQZYYj8RcD9f7Yk3H0%3D\n\n--?sv=2021-12-02&ss=bfqt&srt=co&sp=rwdlacupyx&se=2023-03-29T06:55:30Z&st=2023-03-28T22:55:30Z&spr=https&sig=U9fLj%2FrFYGCcXQDSnV0FD%2Fsy%2BbBvrVLl4dUOgf55PaY%3D\n\nCREATE EXTERNAL DATA SOURCE silver\nWITH ( location = 'https://adlsfhirnonprod.dfs.core.windows.net/silver/30tb/',\n    CREDENTIAL = sqlondemand );\n\n\nCREATE VIEW claimDiagnosisView \nAS SELECT *\nFROM  \n    OPENROWSET(\n        BULK 'Claim_diagnosis',\n        DATA_SOURCE = 'silver',\n        FORMAT='DELTA'\n    ) claimDiagnosis;",
 			"metadata": {
 				"language": "sql"
 			},
 			"currentConnection": {
-				"databaseName": "master",
+				"databaseName": "default",
 				"poolName": "Built-in"
 			},
 			"resultLimit": 5000
