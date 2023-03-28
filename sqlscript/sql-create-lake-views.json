@@ -1,0 +1,17 @@
+{
+	"name": "sql-create-lake-views",
+	"properties": {
+		"content": {
+			"query": "CREATE DATABASE SCOPED CREDENTIAL sqlondemand\nWITH IDENTITY='SHARED ACCESS SIGNATURE',\nSECRET = 'sv=2018-03-28&ss=bf&srt=sco&sp=rl&st=2019-10-14T12%3A10%3A25Z&se=2061-12-31T12%3A10%3A00Z&sig=KlSU2ullCscyTS0An0nozEpo4tO5JAgGBvw%2FJX2lguw%3D';\n\n\nCREATE EXTERNAL DATA SOURCE silverPath\nWITH ( location = 'https://adlsfhirnonprod.dfs.core.windows.net/silver/30tb/' );\n\n\nCREATE VIEW claimDiagnosisView \nAS SELECT *\nFROM  \n    OPENROWSET(\n        BULK 'Claim_diagnosis',\n        DATA_SOURCE = 'silverPath',\n        FORMAT='DELTA'\n    ) claimDiagnosis;\n\nCREATE VIEW claimDiagnosisView \nAS SELECT *\nFROM  \n    OPENROWSET(\n        BULK 'Claim_diagnosis',\n        DATA_SOURCE = 'silverPath',\n        FORMAT='DELTA'\n    ) claimDiagnosis;",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "master",
+				"poolName": "Built-in"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}
