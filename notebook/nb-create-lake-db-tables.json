@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "d824e378-96a5-4f66-a4d9-afae593a5acc"
+				"spark.autotune.trackingId": "1204c4a3-5eb3-4017-89f0-abe8c414c4ac"
 			}
 		},
 		"metadata": {
@@ -151,13 +151,13 @@
 				"source": [
 					"%%sql\r\n",
 					"DROP TABLE IF EXISTS silver.claimDiagnosis;\r\n",
-					"CREATE TABLE silver.claimdiagnosis USING DELTA LOCATION '${claimDiagonisPath}';\r\n",
+					"CREATE TABLE silver.claimDiagnosis USING DELTA LOCATION '${claimDiagonisPath}';\r\n",
 					"\r\n",
 					"DROP TABLE IF EXISTS silver.claimInsurance;\r\n",
-					"CREATE TABLE silver.claiminsurance USING DELTA LOCATION '${claimInsurancePath}';\r\n",
+					"CREATE TABLE silver.claimInsurance USING DELTA LOCATION '${claimInsurancePath}';\r\n",
 					"\r\n",
-					"DROP TABLE IF EXISTS fhirdbexploration.claimProcedure;\r\n",
-					"CREATE TABLE fhirdbexploration.claimprocedure USING DELTA LOCATION '${claimProcedurePath}';"
+					"DROP TABLE IF EXISTS silver.claimProcedure;\r\n",
+					"CREATE TABLE silver.claimProcedure USING DELTA LOCATION '${claimProcedurePath}';"
 				],
 				"execution_count": null
 			}
