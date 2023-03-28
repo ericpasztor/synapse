@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "d66f5a14-2703-408c-ac2c-2de7dbee03bf"
+				"spark.autotune.trackingId": "df164834-5849-4cad-82b2-55ff07586a20"
 			}
 		},
 		"metadata": {
@@ -86,7 +86,7 @@
 				},
 				"source": [
 					"%%sql\r\n",
-					"USE fhirDB"
+					"USE silver"
 				],
 				"execution_count": null
 			},
@@ -104,29 +104,16 @@
 					}
 				},
 				"source": [
-					"fhirDBSilver = \"abfss://silver@adlsfhirnonprod.dfs.core.windows.net/30tb/\""
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"claimDiagonisPath = silverPath + \"Claim_diagnosis/\"\r\n",
-					"spark.conf.set('claimDiagonisPath',claimDiagonisPath)\r\n",
+					"silverPath = \"abfss://silver@adlsfhirnonprod.dfs.core.windows.net/30tb/\"\r\n",
+					"\r\n",
+					"claimDiagnosisPath = silverPath + \"Claim_diagnosis/\"\r\n",
+					"spark.conf.set('claimDiagnosisPath',claimDiagnosisPath)\r\n",
 					"\r\n",
 					"claimInsurancePath = silverPath + \"Claim_insurance/\"\r\n",
 					"spark.conf.set('claimInsurancePath',claimInsurancePath)\r\n",
+					"\r\n",
+					"claimMainPath = silverPath + \"Claim_main/\"\r\n",
+					"spark.conf.set('claimMainPath',claimMainPath)\r\n",
 					"\r\n",
 					"claimProcedurePath = silverPath + \"Claim_procedure/\"\r\n",
 					"spark.conf.set('claimProcedurePath',claimProcedurePath)"
@@ -151,14 +138,50 @@
 				},
 				"source": [
 					"%%sql\r\n",
-					"DROP TABLE IF EXISTS silver.claimDiagnosis;\r\n",
-					"CREATE TABLE silver.claimDiagnosis USING DELTA LOCATION '${claimDiagonisPath}';\r\n",
+					"DROP TABLE IF EXISTS claimDiagnosis;\r\n",
+					"CREATE TABLE claimDiagnosis USING DELTA LOCATION '${claimDiagnosisPath}';\r\n",
 					"\r\n",
-					"DROP TABLE IF EXISTS silver.claimInsurance;\r\n",
-					"CREATE TABLE silver.claimInsurance USING DELTA LOCATION '${claimInsurancePath}';\r\n",
+					"DROP TABLE IF EXISTS claimInsurance;\r\n",
+					"CREATE TABLE claimInsurance USING DELTA LOCATION '${claimInsurancePath}';\r\n",
 					"\r\n",
-					"DROP TABLE IF EXISTS silver.claimProcedure;\r\n",
-					"CREATE TABLE silver.claimProcedure USING DELTA LOCATION '${claimProcedurePath}';"
+					"DROP TABLE IF EXISTS claimMain;\r\n",
+					"CREATE TABLE claimMain USING DELTA LOCATION '${claimMainPath}';\r\n",
+					"\r\n",
+					"DROP TABLE IF EXISTS claimProcedure;\r\n",
+					"CREATE TABLE claimProcedure USING DELTA LOCATION '${claimProcedurePath}';"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"silverPath = \"abfss://silver@adlsfhirnonprod.dfs.core.windows.net/30tb/\"\r\n",
+					"\r\n",
+					"observationCategoryPath = silverPath + \"Observation_category/\"\r\n",
+					"spark.conf.set('observationCategoryPath',observationCategoryPath)\r\n",
+					"\r\n",
+					"observationCodePath = silverPath + \"Observation_code/\"\r\n",
+					"spark.conf.set('observationCodePath',observationCodePath)\r\n",
+					"\r\n",
+					"observationComponentPath = silverPath + \"Observation_component/\"\r\n",
+					"spark.conf.set('observationComponentPath',observationComponentPath)\r\n",
+					"\r\n",
+					"observationMainPath = silverPath + \"Observation_main/\"\r\n",
+					"spark.conf.set('observationMainPath',observationMainPath)\r\n",
+					"\r\n",
+					"observationValueCodeableConceptPath = silverPath + \"Observation_valueCodeableConcept/\"\r\n",
+					"spark.conf.set('observationValueCodeableConceptPath',observationValueCodeableConceptPath)"
 				],
 				"execution_count": null
 			},
@@ -180,9 +203,47 @@
 				},
 				"source": [
 					"%%sql\r\n",
-					"CREATE DATABASE SCOPED CREDENTIAL sqlondemand\r\n",
-					"WITH IDENTITY='SHARED ACCESS SIGNATURE',\r\n",
-					"SECRET = 'sv=2018-03-28&ss=bf&srt=sco&sp=rl&st=2019-10-14T12%3A10%3A25Z&se=2061-12-31T12%3A10%3A00Z&sig=KlSU2ullCscyTS0An0nozEpo4tO5JAgGBvw%2FJX2lguw%3D'"
+					"DROP TABLE IF EXISTS observationCategory;\r\n",
+					"CREATE TABLE observationCategory USING DELTA LOCATION '${observationCategoryPath}';\r\n",
+					"\r\n",
+					"DROP TABLE IF EXISTS observationCode;\r\n",
+					"CREATE TABLE observationCode USING DELTA LOCATION '${observationCodePath}';\r\n",
+					"\r\n",
+					"DROP TABLE IF EXISTS observationComponent;\r\n",
+					"CREATE TABLE observationComponent USING DELTA LOCATION '${observationComponentPath}';\r\n",
+					"\r\n",
+					"DROP TABLE IF EXISTS observationMain;\r\n",
+					"CREATE TABLE observationMain USING DELTA LOCATION '${observationMainPath}';\r\n",
+					"\r\n",
+					"DROP TABLE IF EXISTS observationValueCodeableConcept;\r\n",
+					"CREATE TABLE observationValueCodeableConcept USING DELTA LOCATION '${observationValueCodeableConceptPath}';"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"silverPath = \"abfss://silver@adlsfhirnonprod.dfs.core.windows.net/30tb/\"\r\n",
+					"\r\n",
+					"patientAddressPath = silverPath + \"Patient_address/\"\r\n",
+					"spark.conf.set('patientAddressPath',patientAddressPath)\r\n",
+					"\r\n",
+					"patientExtensionPath = silverPath + \"Patient_extension/\"\r\n",
+					"spark.conf.set('patientExtensionPath',patientExtensionPath)\r\n",
+					"\r\n",
+					"patientIdentifierPath = silverPath + \"Patient_identifier/\"\r\n",
+					"spark.conf.set('patientIdentifierPath',patientIdentifierPath)"
 				],
 				"execution_count": null
 			},
@@ -204,37 +265,14 @@
 				},
 				"source": [
 					"%%sql\r\n",
-					"CREATE EXTERNAL DATA SOURCE silverPath\r\n",
-					"WITH ( location = 'https://adlsfhirnonprod.dfs.core.windows.net/silver/30tb/' );"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"microsoft": {
-						"language": "sparksql"
-					}
-				},
-				"source": [
-					"%%sql\r\n",
-					"CREATE OR ALTER VIEW claimDiagnosisView \r\n",
-					"AS SELECT *\r\n",
-					"FROM  \r\n",
-					"    OPENROWSET(\r\n",
-					"        BULK 'Claim_diagnosis',\r\n",
-					"        DATA_SOURCE = 'silverPath',\r\n",
-					"        FORMAT='DELTA'\r\n",
-					"    ) claimDiagnosis"
+					"DROP TABLE IF EXISTS patientAddress;\r\n",
+					"CREATE TABLE patientAddress USING DELTA LOCATION '${patientAddressPath}';\r\n",
+					"\r\n",
+					"DROP TABLE IF EXISTS patientExtension;\r\n",
+					"CREATE TABLE patientExtension USING DELTA LOCATION '${patientExtensionPath}';\r\n",
+					"\r\n",
+					"DROP TABLE IF EXISTS patientIdentifier;\r\n",
+					"CREATE TABLE patientIdentifier USING DELTA LOCATION '${patientIdentifierPath}';"
 				],
 				"execution_count": null
 			}
