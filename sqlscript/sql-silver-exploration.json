@@ -1,0 +1,17 @@
+{
+	"name": "sql-silver-exploration",
+	"properties": {
+		"content": {
+			"query": "select \np.patient_id, count(*) as count_claims\nfrom \nsilver.claimMain c \nleft join silver.patientIdentifier p \non c.patient_id_reference = p.patient_id\n\nwhere c.year in (2020, 2021) \nand p.gender = 'male' \n    and datediff(year, p.birthDate, current_date()) between 18 and 25\ngroup by p.patient_id",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "master",
+				"poolName": "Built-in"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}
