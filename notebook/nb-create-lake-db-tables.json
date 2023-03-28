@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "c013cb18-7925-4582-b114-36614a88aa12"
+				"spark.autotune.trackingId": "d66f5a14-2703-408c-ac2c-2de7dbee03bf"
 			}
 		},
 		"metadata": {
@@ -181,7 +181,7 @@
 				"source": [
 					"%%sql\r\n",
 					"CREATE DATABASE SCOPED CREDENTIAL sqlondemand\r\n",
-					"WITH IDENTITY='SHARED ACCESS SIGNATURE',  \r\n",
+					"WITH IDENTITY='SHARED ACCESS SIGNATURE',\r\n",
 					"SECRET = 'sv=2018-03-28&ss=bf&srt=sco&sp=rl&st=2019-10-14T12%3A10%3A25Z&se=2061-12-31T12%3A10%3A00Z&sig=KlSU2ullCscyTS0An0nozEpo4tO5JAgGBvw%2FJX2lguw%3D'"
 				],
 				"execution_count": null
