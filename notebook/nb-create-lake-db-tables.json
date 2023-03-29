@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "19a74ed1-da61-4cda-89e4-b073943eb3c0"
+				"spark.autotune.trackingId": "f0244063-7d06-4332-a653-fb0082d45d18"
 			}
 		},
 		"metadata": {
@@ -290,12 +290,13 @@
 					},
 					"microsoft": {
 						"language": "sparksql"
-					}
+					},
+					"collapsed": false
 				},
 				"source": [
 					"%%sql\r\n",
 					"\r\n",
-					"select top 100 * from silver.claiminsurance"
+					"select * from silver.claiminsurance where year = 2020 and month = 01"
 				],
 				"execution_count": 1
 			}
