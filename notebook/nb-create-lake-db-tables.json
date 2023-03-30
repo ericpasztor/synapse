@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "32058101-bbfc-45b0-a3db-1d95dc312ecf"
+				"spark.autotune.trackingId": "ff80131c-c09d-4c90-8f13-e02bdb566196"
 			}
 		},
 		"metadata": {
@@ -341,7 +341,8 @@
 					},
 					"microsoft": {
 						"language": "sparksql"
-					}
+					},
+					"collapsed": false
 				},
 				"source": [
 					"%%sql\r\n",
@@ -354,10 +355,10 @@
 					"\r\n",
 					"where c.year in (2020, 2021) \r\n",
 					"and p.gender = 'male' \r\n",
-					"and datediff(year, p.birthDate, current_date()) between 18 and 25\r\n",
+					"and year(current_date) - year(p.birthDate) between 18 and 25\r\n",
 					"group by p.patient_id;"
 				],
-				"execution_count": 10
+				"execution_count": 14
 			}
 		]
 	}
