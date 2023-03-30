@@ -2,7 +2,7 @@
 	"name": "sql-silver-exploration",
 	"properties": {
 		"content": {
-			"query": "select \np.patient_id, count(*) as count_claims\nfrom \nclaimmain c \nleft join patientidentifier p \non c.patient_id_reference = p.patient_id\n\nwhere c.year in (2020, 2021) \nand p.gender = 'male' \nand datediff(year, p.birthDate, GETDATE()) between 18 and 25\ngroup by p.patient_id;",
+			"query": "--Spark Tables\nselect \np.patient_id, count(*) as count_claims\nfrom \nclaimmain c \nleft join patientidentifier p \non c.patient_id_reference = p.patient_id\n\nwhere c.year in (2020, 2021) \nand p.gender = 'male' \nand datediff(year, p.birthDate, GETDATE()) between 18 and 25\ngroup by p.patient_id;\n\n--Delta Partitioned Views\nselect p.patient_id, count(*) as count_claims\nfrom \nsilver.claimMainView c\nleft join silver.patientIdentifierView p \non c.patient_id_reference = p.patient_id\n\nwhere c.year in (2020, 2021)\nand p.gender = 'male'\nand datediff(year, p.birthDate, GETDATE()) between 18 and 25\n",
 			"metadata": {
 				"language": "sql"
 			},
