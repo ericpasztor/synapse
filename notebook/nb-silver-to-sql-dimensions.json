@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "true",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "6",
-				"spark.autotune.trackingId": "606c1f9c-aec8-4eb4-84db-e2e7633e5a2c"
+				"spark.autotune.trackingId": "48c5a98a-0830-4457-9d41-d56fceacfbfd"
 			}
 		},
 		"metadata": {
@@ -82,15 +82,35 @@
 				},
 				"source": [
 					"obsCategoryDf = spark.read.format(\"delta\").load(silverPath + \"/Observation_category\")\r\n",
-					"#obsComponentDf = spark.read.format(\"delta\").load(silverPath + \"/Observation_component\")\r\n",
-					"#obsCodeDf = spark.read.format(\"delta\").load(silverPath + \"/Observation_code\")\r\n",
-					"#patientIdDf = spark.read.format(\"delta\").load(silverPath + \"/Patient_identifier\")\r\n",
-					"#patientAddressDf = spark.read.format(\"delta\").load(silverPath + \"/Patient_address\")\r\n",
-					"#claimInsuranceDf = spark.read.format(\"delta\").load(silverPath + \"/Claim_insurance\")\r\n",
-					"#claimDiagnosisDf = spark.read.format(\"delta\").load(silverPath + \"/Claim_diagnosis\")\r\n",
-					"#claimProcedureDf = spark.read.format(\"delta\").load(silverPath + \"/Claim_procedure\")"
+					"obsComponentDf = spark.read.format(\"delta\").load(silverPath + \"/Observation_component\")\r\n",
+					"obsCodeDf = spark.read.format(\"delta\").load(silverPath + \"/Observation_code\")\r\n",
+					"patientIdDf = spark.read.format(\"delta\").load(silverPath + \"/Patient_identifier\")\r\n",
+					"patientAddressDf = spark.read.format(\"delta\").load(silverPath + \"/Patient_address\")\r\n",
+					"claimInsuranceDf = spark.read.format(\"delta\").load(silverPath + \"/Claim_insurance\")\r\n",
+					"claimDiagnosisDf = spark.read.format(\"delta\").load(silverPath + \"/Claim_diagnosis\")\r\n",
+					"claimProcedureDf = spark.read.format(\"delta\").load(silverPath + \"/Claim_procedure\")"
 				],
 				"execution_count": 2
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"claimInsuranceDf = claimInsuranceDf.withColumnRenamed(\"insurance_coverage.display\", \"insurance_coverage_display\")\r\n",
+					"\r\n",
+					"claimMainDf.withColumn(\"billablePeriodStartDate\", to_date(col(\"billablePeriod\"),\"MM-dd-yyyy\"))"
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
