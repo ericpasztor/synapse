@@ -1,0 +1,17 @@
+{
+	"name": "sql-dedicated-sql-config",
+	"properties": {
+		"content": {
+			"query": "CREATE SCHEMA fhir;\n\nCREATE USER [ericpasztor@microsoft.com] FROM EXTERNAL PROVIDER; \n\nEXEC sp_addrolemember 'db_exporter', [ericpasztor@microsoft.com];\n\nGRANT CREATE TABLE TO [ericpasztor@microsoft.com];\n\n--Make sure your user has ALTER permissions\nGRANT ALTER ON SCHEMA::<target_database_schema_name> TO [<your_domain_user>@<your_domain_name>.com];\n\n--Make sure your user has ADMINISTER DATABASE BULK OPERATIONS permissions\nGRANT ADMINISTER DATABASE BULK OPERATIONS TO [<your_domain_user>@<your_domain_name>.com];\n\n--Make sure your user has Select permissions on the target table\nGRANT SELECT ON <your_table> TO[<your_domain_user>@<your_domain_name>.com]\n\n--Make sure your user has INSERT permissions on the target table\nGRANT INSERT ON <your_table> TO [<your_domain_user>@<your_domain_name>.com]\n\n--Make sure your user has DELETE permissions on the target table\nGRANT DELETE ON <your_table> TO[<your_domain_user>@<your_domain_name>.com]",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "dsqlnonprod",
+				"poolName": "dsqlnonprod"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}
