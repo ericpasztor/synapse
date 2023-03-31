@@ -1,0 +1,17 @@
+{
+	"name": "create-vstats-columns",
+	"properties": {
+		"content": {
+			"query": "CREATE VIEW dbo.vstats_columns\nAS\nSELECT\n        sm.[name]                           AS [schema_name]\n,       tb.[name]                           AS [table_name]\n,       st.[name]                           AS [stats_name]\n,       st.[filter_definition]              AS [stats_filter_definition]\n,       st.[has_filter]                     AS [stats_is_filtered]\n,       STATS_DATE(st.[object_id],st.[stats_id])\n                                            AS [stats_last_updated_date]\n,       co.[name]                           AS [stats_column_name]\n,       ty.[name]                           AS [column_type]\n,       co.[max_length]                     AS [column_max_length]\n,       co.[precision]                      AS [column_precision]\n,       co.[scale]                          AS [column_scale]\n,       co.[is_nullable]                    AS [column_is_nullable]\n,       co.[collation_name]                 AS [column_collation_name]\n,       QUOTENAME(sm.[name])+'.'+QUOTENAME(tb.[name])\n                                            AS two_part_name\n,       QUOTENAME(DB_NAME())+'.'+QUOTENAME(sm.[name])+'.'+QUOTENAME(tb.[name])\n                                            AS three_part_name\nFROM    sys.objects                         AS ob\nJOIN    sys.stats           AS st ON    ob.[object_id]      = st.[object_id]\nJOIN    sys.stats_columns   AS sc ON    st.[stats_id]       = sc.[stats_id]\n                            AND         st.[object_id]      = sc.[object_id]\nJOIN    sys.columns         AS co ON    sc.[column_id]      = co.[column_id]\n                            AND         sc.[object_id]      = co.[object_id]\nJOIN    sys.types           AS ty ON    co.[user_type_id]   = ty.[user_type_id]\nJOIN    sys.tables          AS tb ON    co.[object_id]      = tb.[object_id]\nJOIN    sys.schemas         AS sm ON    tb.[schema_id]      = sm.[schema_id]\nWHERE   st.[user_created] = 1\n;",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "master",
+				"poolName": "Built-in"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}
