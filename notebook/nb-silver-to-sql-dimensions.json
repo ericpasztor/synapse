@@ -16,7 +16,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "ff8c4bfa-8cbd-40df-80b0-1c78e72cb735"
+				"spark.autotune.trackingId": "946dcbb3-cbf3-4ea5-a53e-7b3b8361739d"
 			}
 		},
 		"metadata": {
@@ -35,7 +35,59 @@
 			{
 				"cell_type": "code",
 				"source": [
-					""
+					"import com.microsoft.spark.sqlanalytics\r\n",
+					"from com.microsoft.spark.sqlanalytics.Constants import Constants\r\n",
+					"\r\n",
+					"accountName = 'adlsfhirnonprod'\r\n",
+					"containerName = 'bronze'\r\n",
+					"relativePath = '30tb'\r\n",
+					"\r\n",
+					"silverPath = \"abfss://silver@\" + accountName + \".dfs.core.windows.net/\" + relativePath"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"df = spark.read.format(\"delta\").load(silverPath + \"/Observation_category\")\r\n",
+					"display(df)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"\r\n",
+					"\r\n",
+					"\r\n",
+					"\r\n",
+					"(df.write\r\n",
+					" .option(Constants.SERVER, \"wkspc-cdw-nonprod.sql.azuresynapse.net\")\r\n",
+					" .option(Constants.TEMP_FOLDER, \"abfss://silver@adlsfhirnonprod.dfs.core.windows.net/sqlStaging\")\r\n",
+					" .mode(\"overwrite\")\r\n",
+					" .synapsesql(\"dsqlnonprod.fhir.observationCategory\"))"
 				],
 				"execution_count": null
 			}
