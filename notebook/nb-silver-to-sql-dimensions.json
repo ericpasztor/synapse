@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "true",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "6",
-				"spark.autotune.trackingId": "bd243b2a-75d8-47b1-a84e-e4c5a06b2325"
+				"spark.autotune.trackingId": "cf212a86-7134-44cd-be3c-21ab9ed871be"
 			}
 		},
 		"metadata": {
@@ -148,11 +148,11 @@
 					}
 				},
 				"source": [
-					"(obsComponentDf.write\r\n",
-					" .option(Constants.SERVER, \"wkspc-cdw-nonprod.sql.azuresynapse.net\")\r\n",
-					" .option(Constants.TEMP_FOLDER, \"abfss://silver@adlsfhirnonprod.dfs.core.windows.net/sqlStaging\")\r\n",
-					" .mode(\"overwrite\")\r\n",
-					" .synapsesql(\"dsqlnonprod.fhir.observationComponent\"))\r\n",
+					"#(obsComponentDf.write\r\n",
+					"# .option(Constants.SERVER, \"wkspc-cdw-nonprod.sql.azuresynapse.net\")\r\n",
+					"# .option(Constants.TEMP_FOLDER, \"abfss://silver@adlsfhirnonprod.dfs.core.windows.net/sqlStaging\")\r\n",
+					"# .mode(\"overwrite\")\r\n",
+					"# .synapsesql(\"dsqlnonprod.fhir.observationComponent\"))\r\n",
 					"\r\n",
 					"(obsCodeDf.write\r\n",
 					" .option(Constants.SERVER, \"wkspc-cdw-nonprod.sql.azuresynapse.net\")\r\n",
