@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "true",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "6",
-				"spark.autotune.trackingId": "48c5a98a-0830-4457-9d41-d56fceacfbfd"
+				"spark.autotune.trackingId": "372112c0-0f5f-4096-8fdd-3ba979c94de4"
 			}
 		},
 		"metadata": {
@@ -90,7 +90,7 @@
 					"claimDiagnosisDf = spark.read.format(\"delta\").load(silverPath + \"/Claim_diagnosis\")\r\n",
 					"claimProcedureDf = spark.read.format(\"delta\").load(silverPath + \"/Claim_procedure\")"
 				],
-				"execution_count": 2
+				"execution_count": 4
 			},
 			{
 				"cell_type": "code",
@@ -108,7 +108,7 @@
 				"source": [
 					"claimInsuranceDf = claimInsuranceDf.withColumnRenamed(\"insurance_coverage.display\", \"insurance_coverage_display\")\r\n",
 					"\r\n",
-					"claimMainDf.withColumn(\"billablePeriodStartDate\", to_date(col(\"billablePeriod\"),\"MM-dd-yyyy\"))"
+					"#claimMainDf.withColumn(\"billablePeriodStartDate\", to_date(col(\"billablePeriod\")))"
 				],
 				"execution_count": null
 			},
@@ -176,21 +176,21 @@
 					" .option(Constants.SERVER, \"wkspc-cdw-nonprod.sql.azuresynapse.net\")\r\n",
 					" .option(Constants.TEMP_FOLDER, \"abfss://silver@adlsfhirnonprod.dfs.core.windows.net/sqlStaging\")\r\n",
 					" .mode(\"overwrite\")\r\n",
-					" .synapsesql(\"dsqlnonprod.fhir.claimInsurance\")\r\n",
+					" .synapsesql(\"dsqlnonprod.fhir.claimInsurance\"))\r\n",
 					"\r\n",
 					"(claimDiagnosisDf.write\r\n",
 					" .option(Constants.SERVER, \"wkspc-cdw-nonprod.sql.azuresynapse.net\")\r\n",
 					" .option(Constants.TEMP_FOLDER, \"abfss://silver@adlsfhirnonprod.dfs.core.windows.net/sqlStaging\")\r\n",
 					" .mode(\"overwrite\")\r\n",
-					" .synapsesql(\"dsqlnonprod.fhir.claimDiagnosis\")\r\n",
+					" .synapsesql(\"dsqlnonprod.fhir.claimDiagnosis\"))\r\n",
 					"\r\n",
 					" (claimProcedureDf.write\r\n",
 					" .option(Constants.SERVER, \"wkspc-cdw-nonprod.sql.azuresynapse.net\")\r\n",
 					" .option(Constants.TEMP_FOLDER, \"abfss://silver@adlsfhirnonprod.dfs.core.windows.net/sqlStaging\")\r\n",
 					" .mode(\"overwrite\")\r\n",
-					" .synapsesql(\"dsqlnonprod.fhir.claimProcedure\")"
+					" .synapsesql(\"dsqlnonprod.fhir.claimProcedure\"))"
 				],
-				"execution_count": null
+				"execution_count": 6
 			}
 		]
 	}
