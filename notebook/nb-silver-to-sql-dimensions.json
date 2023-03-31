@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "true",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "6",
-				"spark.autotune.trackingId": "75f8530c-c58d-4068-abf5-d104fd964fcf"
+				"spark.autotune.trackingId": "138aafcd-b27b-47f0-9aef-f8dfa3191ccd"
 			}
 		},
 		"metadata": {
@@ -90,7 +90,7 @@
 					"claimDiagnosisDf = spark.read.format(\"delta\").load(silverPath + \"/Claim_diagnosis\")\r\n",
 					"claimProcedureDf = spark.read.format(\"delta\").load(silverPath + \"/Claim_procedure\")"
 				],
-				"execution_count": null
+				"execution_count": 9
 			},
 			{
 				"cell_type": "code",
@@ -107,11 +107,11 @@
 				},
 				"source": [
 					"claimInsuranceDf = claimInsuranceDf.withColumnRenamed(\"insurance_coverage.display\", \"insurance_coverage_display\")\r\n",
-					"obsComponentDf = claimInsuranceDf.withColumnRenamed(\"Observation_id\", \"observation_id\")\r\n",
+					"obsComponentDf = obsComponentDf.withColumnRenamed(\"Observation_id\", \"observation_id\")\r\n",
 					"\r\n",
 					"#claimMainDf.withColumn(\"billablePeriodStartDate\", to_date(col(\"billablePeriod\")))"
 				],
-				"execution_count": null
+				"execution_count": 10
 			},
 			{
 				"cell_type": "code",
@@ -191,7 +191,7 @@
 					" .mode(\"overwrite\")\r\n",
 					" .synapsesql(\"dsqlnonprod.fhir.claimProcedure\"))"
 				],
-				"execution_count": null
+				"execution_count": 11
 			}
 		]
 	}
