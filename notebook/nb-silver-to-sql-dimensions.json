@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "true",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "6",
-				"spark.autotune.trackingId": "372112c0-0f5f-4096-8fdd-3ba979c94de4"
+				"spark.autotune.trackingId": "bd243b2a-75d8-47b1-a84e-e4c5a06b2325"
 			}
 		},
 		"metadata": {
@@ -184,13 +184,13 @@
 					" .mode(\"overwrite\")\r\n",
 					" .synapsesql(\"dsqlnonprod.fhir.claimDiagnosis\"))\r\n",
 					"\r\n",
-					" (claimProcedureDf.write\r\n",
+					"(claimProcedureDf.write\r\n",
 					" .option(Constants.SERVER, \"wkspc-cdw-nonprod.sql.azuresynapse.net\")\r\n",
 					" .option(Constants.TEMP_FOLDER, \"abfss://silver@adlsfhirnonprod.dfs.core.windows.net/sqlStaging\")\r\n",
 					" .mode(\"overwrite\")\r\n",
 					" .synapsesql(\"dsqlnonprod.fhir.claimProcedure\"))"
 				],
-				"execution_count": 6
+				"execution_count": 7
 			}
 		]
 	}
