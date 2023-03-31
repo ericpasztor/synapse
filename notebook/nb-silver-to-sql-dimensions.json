@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "true",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "6",
-				"spark.autotune.trackingId": "5d62a0fe-b9c5-467a-8c2a-80d6629e00a1"
+				"spark.autotune.trackingId": "3a0a56b7-8e01-45b5-bb05-a3ed9c4bd3e8"
 			}
 		},
 		"metadata": {
@@ -81,8 +81,14 @@
 					"collapsed": false
 				},
 				"source": [
-					"df = spark.read.format(\"delta\").load(silverPath + \"/Observation_category\")\r\n",
-					"display(df)"
+					"obsCategoryDf = spark.read.format(\"delta\").load(silverPath + \"/Observation_category\")\r\n",
+					"#obsComponentDf = spark.read.format(\"delta\").load(silverPath + \"/Observation_component\")\r\n",
+					"#obsCodeDf = spark.read.format(\"delta\").load(silverPath + \"/Observation_code\")\r\n",
+					"#patientIdDf = spark.read.format(\"delta\").load(silverPath + \"/Patient_identifier\")\r\n",
+					"#patientAddressDf = spark.read.format(\"delta\").load(silverPath + \"/Patient_address\")\r\n",
+					"#claimInsuranceDf = spark.read.format(\"delta\").load(silverPath + \"/Claim_insurance\")\r\n",
+					"#claimDiagnosisDf = spark.read.format(\"delta\").load(silverPath + \"/Claim_diagnosis\")\r\n",
+					"#claimProcedureDf = spark.read.format(\"delta\").load(silverPath + \"/Claim_procedure\")"
 				],
 				"execution_count": 2
 			},
@@ -100,7 +106,7 @@
 					}
 				},
 				"source": [
-					"(df.write\r\n",
+					"(obsCategoryDf.write\r\n",
 					" .option(Constants.SERVER, \"wkspc-cdw-nonprod.sql.azuresynapse.net\")\r\n",
 					" .option(Constants.TEMP_FOLDER, \"abfss://silver@adlsfhirnonprod.dfs.core.windows.net/sqlStaging\")\r\n",
 					" .mode(\"overwrite\")\r\n",
