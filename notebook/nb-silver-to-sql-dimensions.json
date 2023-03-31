@@ -16,7 +16,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "946dcbb3-cbf3-4ea5-a53e-7b3b8361739d"
+				"spark.autotune.trackingId": "1034b250-23c9-4207-8a9f-94b8c6540019"
 			}
 		},
 		"metadata": {
@@ -79,10 +79,6 @@
 					}
 				},
 				"source": [
-					"\r\n",
-					"\r\n",
-					"\r\n",
-					"\r\n",
 					"(df.write\r\n",
 					" .option(Constants.SERVER, \"wkspc-cdw-nonprod.sql.azuresynapse.net\")\r\n",
 					" .option(Constants.TEMP_FOLDER, \"abfss://silver@adlsfhirnonprod.dfs.core.windows.net/sqlStaging\")\r\n",
