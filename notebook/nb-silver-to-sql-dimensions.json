@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "true",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "6",
-				"spark.autotune.trackingId": "138aafcd-b27b-47f0-9aef-f8dfa3191ccd"
+				"spark.autotune.trackingId": "65035bfa-2ecd-4b36-9523-2aff6fcb0859"
 			}
 		},
 		"metadata": {
@@ -106,12 +106,13 @@
 					}
 				},
 				"source": [
-					"claimInsuranceDf = claimInsuranceDf.withColumnRenamed(\"insurance_coverage.display\", \"insurance_coverage_display\")\r\n",
-					"obsComponentDf = obsComponentDf.withColumnRenamed(\"Observation_id\", \"observation_id\")\r\n",
+					"#claimInsuranceDf = claimInsuranceDf.withColumnRenamed(\"insurance_coverage.display\", \"insurance_coverage_display\")\r\n",
+					"#obsComponentDf = obsComponentDf.withColumnRenamed(\"Observation_id\", \"observation_id\")\r\n",
+					"obsCodeDf = obsCodeDf.withColumnRenamed(\"Observation_id\", \"observation_id\")\r\n",
 					"\r\n",
 					"#claimMainDf.withColumn(\"billablePeriodStartDate\", to_date(col(\"billablePeriod\")))"
 				],
-				"execution_count": 10
+				"execution_count": 12
 			},
 			{
 				"cell_type": "code",
@@ -149,11 +150,11 @@
 					}
 				},
 				"source": [
-					"(obsComponentDf.write\r\n",
-					" .option(Constants.SERVER, \"wkspc-cdw-nonprod.sql.azuresynapse.net\")\r\n",
-					" .option(Constants.TEMP_FOLDER, \"abfss://silver@adlsfhirnonprod.dfs.core.windows.net/sqlStaging\")\r\n",
-					" .mode(\"overwrite\")\r\n",
-					" .synapsesql(\"dsqlnonprod.fhir.observationComponent\"))\r\n",
+					"#(obsComponentDf.write\r\n",
+					"# .option(Constants.SERVER, \"wkspc-cdw-nonprod.sql.azuresynapse.net\")\r\n",
+					"# .option(Constants.TEMP_FOLDER, \"abfss://silver@adlsfhirnonprod.dfs.core.windows.net/sqlStaging\")\r\n",
+					"# .mode(\"overwrite\")\r\n",
+					"# .synapsesql(\"dsqlnonprod.fhir.observationComponent\"))\r\n",
 					"\r\n",
 					"(obsCodeDf.write\r\n",
 					" .option(Constants.SERVER, \"wkspc-cdw-nonprod.sql.azuresynapse.net\")\r\n",
@@ -191,7 +192,7 @@
 					" .mode(\"overwrite\")\r\n",
 					" .synapsesql(\"dsqlnonprod.fhir.claimProcedure\"))"
 				],
-				"execution_count": 11
+				"execution_count": 13
 			}
 		]
 	}
