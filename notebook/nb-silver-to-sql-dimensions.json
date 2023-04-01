@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "true",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "6",
-				"spark.autotune.trackingId": "65035bfa-2ecd-4b36-9523-2aff6fcb0859"
+				"spark.autotune.trackingId": "6d69a43e-0371-40c4-8daa-ab810f627a24"
 			}
 		},
 		"metadata": {
@@ -192,7 +192,7 @@
 					" .mode(\"overwrite\")\r\n",
 					" .synapsesql(\"dsqlnonprod.fhir.claimProcedure\"))"
 				],
-				"execution_count": 13
+				"execution_count": 14
 			}
 		]
 	}
