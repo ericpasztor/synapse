@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "true",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "6",
-				"spark.autotune.trackingId": "6d69a43e-0371-40c4-8daa-ab810f627a24"
+				"spark.autotune.trackingId": "b3fd052e-f05a-4b0b-a902-1ad38288f15d"
 			}
 		},
 		"metadata": {
@@ -156,29 +156,29 @@
 					"# .mode(\"overwrite\")\r\n",
 					"# .synapsesql(\"dsqlnonprod.fhir.observationComponent\"))\r\n",
 					"\r\n",
-					"(obsCodeDf.write\r\n",
-					" .option(Constants.SERVER, \"wkspc-cdw-nonprod.sql.azuresynapse.net\")\r\n",
-					" .option(Constants.TEMP_FOLDER, \"abfss://silver@adlsfhirnonprod.dfs.core.windows.net/sqlStaging\")\r\n",
-					" .mode(\"overwrite\")\r\n",
-					" .synapsesql(\"dsqlnonprod.fhir.observationCode\"))\r\n",
+					"#(obsCodeDf.write\r\n",
+					"# .option(Constants.SERVER, \"wkspc-cdw-nonprod.sql.azuresynapse.net\")\r\n",
+					"# .option(Constants.TEMP_FOLDER, \"abfss://silver@adlsfhirnonprod.dfs.core.windows.net/sqlStaging\")\r\n",
+					"# .mode(\"overwrite\")\r\n",
+					"# .synapsesql(\"dsqlnonprod.fhir.observationCode\"))\r\n",
 					"\r\n",
-					"(patientIdDf.write\r\n",
-					" .option(Constants.SERVER, \"wkspc-cdw-nonprod.sql.azuresynapse.net\")\r\n",
-					" .option(Constants.TEMP_FOLDER, \"abfss://silver@adlsfhirnonprod.dfs.core.windows.net/sqlStaging\")\r\n",
-					" .mode(\"overwrite\")\r\n",
-					" .synapsesql(\"dsqlnonprod.fhir.patientIdentifier\"))\r\n",
+					"#(patientIdDf.write\r\n",
+					"# .option(Constants.SERVER, \"wkspc-cdw-nonprod.sql.azuresynapse.net\")\r\n",
+					"# .option(Constants.TEMP_FOLDER, \"abfss://silver@adlsfhirnonprod.dfs.core.windows.net/sqlStaging\")\r\n",
+					"# .mode(\"overwrite\")\r\n",
+					"# .synapsesql(\"dsqlnonprod.fhir.patientIdentifier\"))\r\n",
 					"\r\n",
-					"(patientAddressDf.write\r\n",
-					" .option(Constants.SERVER, \"wkspc-cdw-nonprod.sql.azuresynapse.net\")\r\n",
-					" .option(Constants.TEMP_FOLDER, \"abfss://silver@adlsfhirnonprod.dfs.core.windows.net/sqlStaging\")\r\n",
-					" .mode(\"overwrite\")\r\n",
-					" .synapsesql(\"dsqlnonprod.fhir.patientAddress\"))\r\n",
+					"#(patientAddressDf.write\r\n",
+					"# .option(Constants.SERVER, \"wkspc-cdw-nonprod.sql.azuresynapse.net\")\r\n",
+					"# .option(Constants.TEMP_FOLDER, \"abfss://silver@adlsfhirnonprod.dfs.core.windows.net/sqlStaging\")\r\n",
+					"# .mode(\"overwrite\")\r\n",
+					"# .synapsesql(\"dsqlnonprod.fhir.patientAddress\"))\r\n",
 					"\r\n",
-					"(claimInsuranceDf.write\r\n",
-					" .option(Constants.SERVER, \"wkspc-cdw-nonprod.sql.azuresynapse.net\")\r\n",
-					" .option(Constants.TEMP_FOLDER, \"abfss://silver@adlsfhirnonprod.dfs.core.windows.net/sqlStaging\")\r\n",
-					" .mode(\"overwrite\")\r\n",
-					" .synapsesql(\"dsqlnonprod.fhir.claimInsurance\"))\r\n",
+					"#(claimInsuranceDf.write\r\n",
+					"# .option(Constants.SERVER, \"wkspc-cdw-nonprod.sql.azuresynapse.net\")\r\n",
+					"# .option(Constants.TEMP_FOLDER, \"abfss://silver@adlsfhirnonprod.dfs.core.windows.net/sqlStaging\")\r\n",
+					"# .mode(\"overwrite\")\r\n",
+					"# .synapsesql(\"dsqlnonprod.fhir.claimInsurance\"))\r\n",
 					"\r\n",
 					"(claimDiagnosisDf.write\r\n",
 					" .option(Constants.SERVER, \"wkspc-cdw-nonprod.sql.azuresynapse.net\")\r\n",
@@ -192,7 +192,7 @@
 					" .mode(\"overwrite\")\r\n",
 					" .synapsesql(\"dsqlnonprod.fhir.claimProcedure\"))"
 				],
-				"execution_count": 14
+				"execution_count": 18
 			}
 		]
 	}
