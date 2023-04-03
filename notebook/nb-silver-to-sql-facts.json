@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "true",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "6",
-				"spark.autotune.trackingId": "8f5cc224-8578-4340-8243-decf76a6c940"
+				"spark.autotune.trackingId": "bbfc79c6-13d5-4bdc-aa6c-62fe265ee9c0"
 			}
 		},
 		"metadata": {
@@ -111,12 +111,7 @@
 					"collapsed": false
 				},
 				"source": [
-					"#obsMainDf = obsMainDf.withColumn(\"issuedDate\", to_timestamp(col(\"issued\")))\r\n",
-					"#obsMainDf = obsMainDf.withColumn(\"effectiveDate\", to_timestamp(col(\"effectiveDateTime\")))\r\n",
-					"claimMainDf = claimMainDf.withColumnRenamed(\"use\", \"isuse\")\r\n",
-					"#claimMainDf = claimMainDf.withColumn(\"billablePeriodStartDate\", to_timestamp(col(\"billablePeriod_start\")))\r\n",
-					"#claimMainDf = claimMainDf.withColumn(\"billablePeriodEndDate\", to_timestamp(col(\"billablePeriod_end\")))\r\n",
-					"#claimMainDf = claimMainDf.withColumn(\"createdDate\", to_timestamp(col(\"created\")))"
+					"claimMainDf = claimMainDf.withColumnRenamed(\"use\", \"isuse\")"
 				],
 				"execution_count": 17
 			},
