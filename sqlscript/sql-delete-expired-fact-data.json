@@ -2,13 +2,13 @@
 	"name": "sql-delete-expired-fact-data",
 	"properties": {
 		"content": {
-			"query": "",
+			"query": "DELETE from fhir.claimMain where year = 2016;\nDELETE from fhir.observationMain where year = 2016;",
 			"metadata": {
 				"language": "sql"
 			},
 			"currentConnection": {
-				"databaseName": "master",
-				"poolName": "Built-in"
+				"databaseName": "dsqlnonprod",
+				"poolName": "dsqlnonprod"
 			},
 			"resultLimit": 5000
 		},
