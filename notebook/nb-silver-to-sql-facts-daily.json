@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "true",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "6",
-				"spark.autotune.trackingId": "3b542015-0c7f-4335-9440-36dad504a969"
+				"spark.autotune.trackingId": "ee29aa6e-8326-4740-84a5-fa0db1ff334d"
 			}
 		},
 		"metadata": {
@@ -66,7 +66,7 @@
 					"\r\n",
 					"silverPath = \"abfss://silver@\" + accountName + \".dfs.core.windows.net/\" + relativePath"
 				],
-				"execution_count": 14
+				"execution_count": 2
 			},
 			{
 				"cell_type": "code",
@@ -87,10 +87,7 @@
 					"claimMainDf = spark.read.format(\"delta\").load(silverPath + \"/Claim_main\")\r\n",
 					"\r\n",
 					"obsMainDf = obsMainDf.filter(col(\"year\").isin(years))\r\n",
-					"claimMainDf = claimMainDf.filter(col(\"year\").isin(years))\r\n",
-					"\r\n",
-					"obsMainDf.createOrReplaceTempView(\"observationMain\")\r\n",
-					"claimMainDf.createOrReplaceTempView(\"claimMain\")"
+					"claimMainDf = claimMainDf.filter(col(\"year\").isin(years))"
 				],
 				"execution_count": 20
 			},
