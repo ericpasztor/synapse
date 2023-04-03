@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "true",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "6",
-				"spark.autotune.trackingId": "898ecf5e-7680-4d53-8b9f-7bfe5b59a125"
+				"spark.autotune.trackingId": "188fc7cc-6f44-45f4-88d6-468b5f6e48ce"
 			}
 		},
 		"metadata": {
@@ -192,8 +192,11 @@
 					"\r\n",
 					"    print(\"Processing: \" + month + \" \" + day)\r\n",
 					"\r\n",
-					"    obsMainDf = spark.read.format(\"delta\").load(obsPath + \"/month=\" + month + \"/day=\" + day)\r\n",
-					"    claimMainDf = spark.read.format(\"delta\").load(claimPath + \"/month=\" + month + \"/day=\" + day)\r\n",
+					"    obsMainDf = spark.read.format(\"delta\").load(obsPath + \"/month=\" + month)\r\n",
+					"    claimMainDf = spark.read.format(\"delta\").load(claimPath + \"/month=\" + month)\r\n",
+					"\r\n",
+					"    obsMainDf = obsMainDf.where(obsMainDf.day == day)\r\n",
+					"    claimMainDf = claimMainDf.where(claimMainDf.day == day)\r\n",
 					"\r\n",
 					"    (obsMainDf.write\r\n",
 					"     .option(Constants.SERVER, \"wkspc-cdw-nonprod.sql.azuresynapse.net\")\r\n",
@@ -209,7 +212,7 @@
 					"    \r\n",
 					"    startDate = startDate + datetime.timedelta(days=1)"
 				],
-				"execution_count": null
+				"execution_count": 14
 			}
 		]
 	}
