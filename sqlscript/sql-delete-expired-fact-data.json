@@ -2,7 +2,7 @@
 	"name": "sql-delete-expired-fact-data",
 	"properties": {
 		"content": {
-			"query": "DECLARE @today date;\nDECLARE @year varchar(4);\nDECLARE @month varchar(2);\nDECLARE @day varchar(2);\nDECLARE @purgeDate date;\n\nSET @today = DATEADD(Year,-5,GETDATE());\nSET @year = (select cast(datepart(year, @today) as varchar(4)));\nSET @month = (RIGHT('00' + CONVERT(NVARCHAR(2), DATEPART(MONTH, @today)), 2));\nSET @day = (RIGHT('00' + CONVERT(NVARCHAR(2), DATEPART(DAY, @today)), 2));\n\nSET @purgeDate = cast(@year + @month + @day as date);\n\nselect cast(cast(year as varchar(4)) + month + day as date) from fhir.claimMain\n\nDELETE from fhir.claimMain where cast(cast(year as varchar(4)) + month + day as date) < @purgeDate;\n--DELETE from fhir.observationMain where cast(cast(year as varchar(4)) + month + day as date) < @purgeDate;\n\n",
+			"query": "DECLARE @today date;\nDECLARE @year varchar(4);\nDECLARE @month varchar(2);\nDECLARE @day varchar(2);\nDECLARE @purgeDate date;\n\n--SET @today = DATEADD(Year,-5,GETDATE());\nSET @today = DATEADD(year, -5, cast('20211231' as date))\nSET @year = (select cast(datepart(year, @today) as varchar(4)));\nSET @month = (RIGHT('00' + CONVERT(NVARCHAR(2), DATEPART(MONTH, @today)), 2));\nSET @day = (RIGHT('00' + CONVERT(NVARCHAR(2), DATEPART(DAY, @today)), 2));\n\nSET @purgeDate = cast(@year + @month + @day as date);\n\nDELETE from fhir.claimMain where cast(cast(year as varchar(4)) + month + day as date) <= @purgeDate;\nDELETE from fhir.observationMain where cast(cast(year as varchar(4)) + month + day as date) <= @purgeDate;\n\n",
 			"metadata": {
 				"language": "sql"
 			},
