@@ -1,0 +1,17 @@
+{
+	"name": "sql-pool-exploration",
+	"properties": {
+		"content": {
+			"query": "SELECT\n    patient.gender AS Patient_Gender,\n    patient.maritalstatus_text AS Patient_Marital_Status,\n    SUM(claim.total_value) AS Sum_Of_Claim_Total_Value,\n    COUNT_BIG(claim.total_value) AS Count_of_Claims\nFROM fhir.patient_main_hash AS patient\nINNER JOIN \n    (\n        SELECT \n            patient_id_reference\n        FROM fhir.observation_main\n        INNER JOIN fhir.observation_code\n            ON observation_main.observation_id = observation_code.observation_id\n        WHERE\n            observation_code.code_text = 'Pain severity - 0-10 verbal numeric rating [Score] - Reported'\n            AND observation_main.valuequantity_value IN (8,9,10)\n        GROUP BY patient_id_reference\n    ) AS observation \n    ON patient.patient_id = observation.patient_id_reference\nLEFT JOIN fhir.claim_main AS claim\n    ON patient.patient_id = claim.patient_id_reference\nWHERE\n    claim_main.billableperiod_start_date >= '01-01-2020 00:00:00' AND claim_main.billableperiod_start_date < '12-31-2021 00:00:00'\nGROUP BY\n    patient.gender,\n    patient.maritalstatus_text\nORDER BY\n    patient.gender,\n    patient.maritalstatus_text",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "master",
+				"poolName": "Built-in"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}
