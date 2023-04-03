@@ -95,6 +95,9 @@
 				"sqlPool": {
 					"referenceName": "dsqlnonprod",
 					"type": "SqlPoolReference"
+				},
+				"typeProperties": {
+					"storedProcedureName": "[fhir].[deleteExpiredFactData]"
 				}
 			}
 		],
