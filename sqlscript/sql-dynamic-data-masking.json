@@ -2,13 +2,13 @@
 	"name": "sql-dynamic-data-masking",
 	"properties": {
 		"content": {
-			"query": "",
+			"query": "CREATE USER Admin WITHOUT LOGIN;\nCREATE USER Analyst WITHOUT LOGIN;\nCREATE USER Business WITHOUT LOGIN; \n\nALTER ROLE db_datareader ADD MEMBER Admin; \nALTER ROLE db_datareader ADD MEMBER Analyst; \nALTER ROLE db_datareader ADD MEMBER Business; \n\nGRANT UNMASK ON SCHEMA::fhir TO Admin; \nGRANT SELECT ON SCHEMA::fhir TO Analyst; \nGRANT SELECT ON SCHEMA::fhir TO Business; \n\nGRANT SELECT ON fhir.patientIdentifier (\n    patient_id,\n    birthDate,\n    deceasedDateTime,\n    gender,\n    maritalStatus_text,\n    maritalStatus_coding_code,\n    maritalStatus_coding_display,\n    maritalStatus_coding_system,\n    multipleBirthBoolean,\n    multipleBirthInteger,\n    resourceType,\n    text_div,\n    text_status,\n    identifier_system,\n    identifier_type_coding_code,\n    identifier_type_coding_display,\n    identifier_type_coding_system,\n --   identifier_type_text,\n --   identifier_type_value,\n    name_family,\n    name_given,\n    name_prefix,\n    name_suffix,\n    name_use,\n    telecom_system,\n    telecom_use,\n    telecom_value,\n    communication_language_text,\n    communication_language_coding_code,\n    communication_language_coding_display,\n    communication_language_coding_system\n) To Business;\n  \n  -- impersonate for testing:\nEXECUTE AS User = 'Analyst';\nselect top 100 * from fhir.patientIdentifier;\nREVERT;\n\nselect current_user as login_name\n\nALTER TABLE fhir.patientIdentifier\nALTER COLUMN identifier_value ADD MASKED WITH (FUNCTION = 'default()'); --DLs, MRNs, Passports\nALTER COLUMN identifier_value ADD MASKED WITH (FUNCTION = 'partial(3, \"-xx-xxxx\", 0)'); --SSNs\n\nALTER TABLE fhir.patientIdentifier   \nALTER COLUMN identifier_value DROP MASKED;  ",
 			"metadata": {
 				"language": "sql"
 			},
 			"currentConnection": {
-				"databaseName": "master",
-				"poolName": "Built-in"
+				"databaseName": "dsqlnonprod",
+				"poolName": "dsqlnonprod"
 			},
 			"resultLimit": 5000
 		},
