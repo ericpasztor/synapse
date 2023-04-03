@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "true",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "6",
-				"spark.autotune.trackingId": "ae4d785a-9308-49e2-87ff-5b57bf2ad05b"
+				"spark.autotune.trackingId": "53e11308-f559-463e-8ce2-5462e8f628a2"
 			}
 		},
 		"metadata": {
@@ -137,16 +137,16 @@
 					"(obsMainDf.write\r\n",
 					" .option(Constants.SERVER, \"wkspc-cdw-nonprod.sql.azuresynapse.net\")\r\n",
 					" .option(Constants.TEMP_FOLDER, \"abfss://silver@adlsfhirnonprod.dfs.core.windows.net/sqlStaging\")\r\n",
-					" .mode(\"overwrite\")\r\n",
+					" .mode(\"append\")\r\n",
 					" .synapsesql(\"dsqlnonprod.fhir.observationMain\"))\r\n",
 					"\r\n",
 					"(claimMainDf.write\r\n",
 					" .option(Constants.SERVER, \"wkspc-cdw-nonprod.sql.azuresynapse.net\")\r\n",
 					" .option(Constants.TEMP_FOLDER, \"abfss://silver@adlsfhirnonprod.dfs.core.windows.net/sqlStaging\")\r\n",
-					" .mode(\"overwrite\")\r\n",
+					" .mode(\"append\")\r\n",
 					" .synapsesql(\"dsqlnonprod.fhir.claimMain\"))"
 				],
-				"execution_count": 35
+				"execution_count": 12
 			},
 			{
 				"cell_type": "markdown",
