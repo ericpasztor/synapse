@@ -1,0 +1,14 @@
+{
+	"name": "lsdsqlnonprod",
+	"properties": {
+		"annotations": [],
+		"type": "AzureSqlDW",
+		"typeProperties": {
+			"connectionString": "Integrated Security=False;Encrypt=True;Connection Timeout=30;Data Source=wkspc-cdw-nonprod.sql.azuresynapse.net;Initial Catalog=dsqlnonprod"
+		},
+		"connectVia": {
+			"referenceName": "AutoResolveIntegrationRuntime",
+			"type": "IntegrationRuntimeReference"
+		}
+	}
+}
