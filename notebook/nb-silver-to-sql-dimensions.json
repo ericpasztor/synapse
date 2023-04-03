@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "true",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "6",
-				"spark.autotune.trackingId": "b107c3af-b7b5-4296-a643-5f8672e153ea"
+				"spark.autotune.trackingId": "f92b36d5-51eb-40ab-874e-ce7a05d140ff"
 			}
 		},
 		"metadata": {
@@ -108,9 +108,7 @@
 				"source": [
 					"claimInsuranceDf = claimInsuranceDf.withColumnRenamed(\"insurance_coverage.display\", \"insurance_coverage_display\")\r\n",
 					"obsComponentDf = obsComponentDf.withColumnRenamed(\"Observation_id\", \"observation_id\")\r\n",
-					"obsCodeDf = obsCodeDf.withColumnRenamed(\"Observation_id\", \"observation_id\")\r\n",
-					"\r\n",
-					"#claimMainDf.withColumn(\"billablePeriodStartDate\", to_date(col(\"billablePeriod\")))"
+					"obsCodeDf = obsCodeDf.withColumnRenamed(\"Observation_id\", \"observation_id\")"
 				],
 				"execution_count": 12
 			},
@@ -132,24 +130,8 @@
 					" .option(Constants.SERVER, \"wkspc-cdw-nonprod.sql.azuresynapse.net\")\r\n",
 					" .option(Constants.TEMP_FOLDER, \"abfss://silver@adlsfhirnonprod.dfs.core.windows.net/sqlStaging\")\r\n",
 					" .mode(\"overwrite\")\r\n",
-					" .synapsesql(\"dsqlnonprod.fhir.observationCategory\"))"
-				],
-				"execution_count": 3
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
+					" .synapsesql(\"dsqlnonprod.fhir.observationCategory\"))\r\n",
+					"\r\n",
 					"(obsComponentDf.write\r\n",
 					" .option(Constants.SERVER, \"wkspc-cdw-nonprod.sql.azuresynapse.net\")\r\n",
 					" .option(Constants.TEMP_FOLDER, \"abfss://silver@adlsfhirnonprod.dfs.core.windows.net/sqlStaging\")\r\n",
