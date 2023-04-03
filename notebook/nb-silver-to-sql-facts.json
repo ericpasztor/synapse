@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "true",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "6",
-				"spark.autotune.trackingId": "188fc7cc-6f44-45f4-88d6-468b5f6e48ce"
+				"spark.autotune.trackingId": "1dcdd8c6-241b-4e1e-9dbc-b9627d5d3b92"
 			}
 		},
 		"metadata": {
@@ -118,7 +118,7 @@
 					"#claimMainDf = claimMainDf.withColumn(\"billablePeriodEndDate\", to_timestamp(col(\"billablePeriod_end\")))\r\n",
 					"#claimMainDf = claimMainDf.withColumn(\"createdDate\", to_timestamp(col(\"created\")))"
 				],
-				"execution_count": 11
+				"execution_count": 17
 			},
 			{
 				"cell_type": "code",
@@ -198,6 +198,8 @@
 					"    obsMainDf = obsMainDf.where(obsMainDf.day == day)\r\n",
 					"    claimMainDf = claimMainDf.where(claimMainDf.day == day)\r\n",
 					"\r\n",
+					"    claimMainDf = claimMainDf.withColumnRenamed(\"use\", \"isuse\")\r\n",
+					"\r\n",
 					"    (obsMainDf.write\r\n",
 					"     .option(Constants.SERVER, \"wkspc-cdw-nonprod.sql.azuresynapse.net\")\r\n",
 					"     .option(Constants.TEMP_FOLDER, \"abfss://silver@adlsfhirnonprod.dfs.core.windows.net/sqlStaging\")\r\n",
@@ -212,7 +214,7 @@
 					"    \r\n",
 					"    startDate = startDate + datetime.timedelta(days=1)"
 				],
-				"execution_count": 14
+				"execution_count": 18
 			}
 		]
 	}
