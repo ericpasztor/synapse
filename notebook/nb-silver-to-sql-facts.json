@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "true",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "6",
-				"spark.autotune.trackingId": "c265c260-5ddf-41ab-b262-c488bd307790"
+				"spark.autotune.trackingId": "af81f1d7-7041-4469-833b-62e9c7b15c60"
 			}
 		},
 		"metadata": {
@@ -90,7 +90,7 @@
 					"obsMainDf = obsMainDf.filter(col(\"year\").isin(years))\r\n",
 					"claimMainDf = claimMainDf.filter(col(\"year\").isin(years))"
 				],
-				"execution_count": 29
+				"execution_count": 32
 			},
 			{
 				"cell_type": "code",
@@ -107,12 +107,12 @@
 					"collapsed": false
 				},
 				"source": [
-					"obsMainDf = obsMainDf.withColumn(\"issuedDate\", to_timestamp(col(\"issued\")))\r\n",
-					"obsMainDf = obsMainDf.withColumn(\"effectiveDate\", to_timestamp(col(\"effectiveDateTime\")))\r\n",
+					"#obsMainDf = obsMainDf.withColumn(\"issuedDate\", to_timestamp(col(\"issued\")))\r\n",
+					"#obsMainDf = obsMainDf.withColumn(\"effectiveDate\", to_timestamp(col(\"effectiveDateTime\")))\r\n",
 					"\r\n",
-					"claimMainDf = claimMainDf.withColumn(\"billablePeriodStartDate\", to_timestamp(col(\"billablePeriod_start\")))\r\n",
-					"claimMainDf = claimMainDf.withColumn(\"billablePeriodEndDate\", to_timestamp(col(\"billablePeriod_end\")))\r\n",
-					"claimMainDf = claimMainDf.withColumn(\"createdDate\", to_timestamp(col(\"created\")))"
+					"#claimMainDf = claimMainDf.withColumn(\"billablePeriodStartDate\", to_timestamp(col(\"billablePeriod_start\")))\r\n",
+					"#claimMainDf = claimMainDf.withColumn(\"billablePeriodEndDate\", to_timestamp(col(\"billablePeriod_end\")))\r\n",
+					"#claimMainDf = claimMainDf.withColumn(\"createdDate\", to_timestamp(col(\"created\")))"
 				],
 				"execution_count": 30
 			},
@@ -142,7 +142,7 @@
 					" .mode(\"overwrite\")\r\n",
 					" .synapsesql(\"dsqlnonprod.fhir.claimMain\"))"
 				],
-				"execution_count": 31
+				"execution_count": 33
 			},
 			{
 				"cell_type": "markdown",
