@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "true",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "6",
-				"spark.autotune.trackingId": "e209306a-cf5d-461e-a78f-e290c5c779a5"
+				"spark.autotune.trackingId": "ae4d785a-9308-49e2-87ff-5b57bf2ad05b"
 			}
 		},
 		"metadata": {
@@ -63,11 +63,13 @@
 					"containerName = 'bronze'\r\n",
 					"relativePath = '30tb'\r\n",
 					"\r\n",
-					"years = [2016,2017,2018,2019,2020]\r\n",
+					"#years = [2016,2017,2018,2019,2021]\r\n",
+					"years= [2021]\r\n",
+					"months = ['01','02','03','04','05','06','07','08','09','10','11']\r\n",
 					"\r\n",
 					"silverPath = \"abfss://silver@\" + accountName + \".dfs.core.windows.net/\" + relativePath"
 				],
-				"execution_count": 28
+				"execution_count": 6
 			},
 			{
 				"cell_type": "code",
@@ -88,9 +90,11 @@
 					"claimMainDf = spark.read.format(\"delta\").load(silverPath + \"/Claim_main\")\r\n",
 					"\r\n",
 					"obsMainDf = obsMainDf.filter(col(\"year\").isin(years))\r\n",
-					"claimMainDf = claimMainDf.filter(col(\"year\").isin(years))"
+					"claimMainDf = claimMainDf.filter(col(\"year\").isin(years))\r\n",
+					"obsMainDf = obsMainDf.filter(col(\"month\").isin(months))\r\n",
+					"claimMainDf = claimMainDf.filter(col(\"month\").isin(months))"
 				],
-				"execution_count": 32
+				"execution_count": 7
 			},
 			{
 				"cell_type": "code",
@@ -114,7 +118,7 @@
 					"#claimMainDf = claimMainDf.withColumn(\"billablePeriodEndDate\", to_timestamp(col(\"billablePeriod_end\")))\r\n",
 					"#claimMainDf = claimMainDf.withColumn(\"createdDate\", to_timestamp(col(\"created\")))"
 				],
-				"execution_count": 34
+				"execution_count": 11
 			},
 			{
 				"cell_type": "code",
@@ -130,11 +134,11 @@
 					}
 				},
 				"source": [
-					"#(obsMainDf.write\r\n",
-					"# .option(Constants.SERVER, \"wkspc-cdw-nonprod.sql.azuresynapse.net\")\r\n",
-					"# .option(Constants.TEMP_FOLDER, \"abfss://silver@adlsfhirnonprod.dfs.core.windows.net/sqlStaging\")\r\n",
-					"# .mode(\"overwrite\")\r\n",
-					"# .synapsesql(\"dsqlnonprod.fhir.observationMain\"))\r\n",
+					"(obsMainDf.write\r\n",
+					" .option(Constants.SERVER, \"wkspc-cdw-nonprod.sql.azuresynapse.net\")\r\n",
+					" .option(Constants.TEMP_FOLDER, \"abfss://silver@adlsfhirnonprod.dfs.core.windows.net/sqlStaging\")\r\n",
+					" .mode(\"overwrite\")\r\n",
+					" .synapsesql(\"dsqlnonprod.fhir.observationMain\"))\r\n",
 					"\r\n",
 					"(claimMainDf.write\r\n",
 					" .option(Constants.SERVER, \"wkspc-cdw-nonprod.sql.azuresynapse.net\")\r\n",
