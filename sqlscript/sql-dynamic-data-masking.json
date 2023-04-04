@@ -7,8 +7,8 @@
 				"language": "sql"
 			},
 			"currentConnection": {
-				"databaseName": "ldw",
-				"poolName": "Built-in"
+				"databaseName": "dsqlnonprod",
+				"poolName": "dsqlnonprod"
 			},
 			"resultLimit": 5000
 		},
