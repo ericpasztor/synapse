@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "true",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "6",
-				"spark.autotune.trackingId": "f92b36d5-51eb-40ab-874e-ce7a05d140ff"
+				"spark.autotune.trackingId": "1732e5e7-6f28-4d39-b73c-596fec63e93e"
 			}
 		},
 		"metadata": {
@@ -59,7 +59,7 @@
 					"from pyspark.sql import SparkSession\r\n",
 					"\r\n",
 					"accountName = 'adlsfhirnonprod'\r\n",
-					"containerName = 'bronze'\r\n",
+					"containerName = 'silver'\r\n",
 					"relativePath = '30tb'\r\n",
 					"\r\n",
 					"silverPath = \"abfss://silver@\" + accountName + \".dfs.core.windows.net/\" + relativePath"
