@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "true",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "6",
-				"spark.autotune.trackingId": "bbfc79c6-13d5-4bdc-aa6c-62fe265ee9c0"
+				"spark.autotune.trackingId": "fedf8c82-1cbb-48ab-bb51-4630a1f7b355"
 			}
 		},
 		"metadata": {
@@ -114,6 +114,19 @@
 					"claimMainDf = claimMainDf.withColumnRenamed(\"use\", \"isuse\")"
 				],
 				"execution_count": 17
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Historical Load (Claim, Observation Facts)"
+				]
 			},
 			{
 				"cell_type": "code",
