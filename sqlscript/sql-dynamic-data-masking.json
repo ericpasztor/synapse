@@ -7,8 +7,8 @@
 				"language": "sql"
 			},
 			"currentConnection": {
-				"databaseName": "dsqlnonprod",
-				"poolName": "dsqlnonprod"
+				"databaseName": "silver",
+				"poolName": "Built-in"
 			},
 			"resultLimit": 5000
 		},
