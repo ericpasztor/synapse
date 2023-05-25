@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "db2c0588-ef8d-4b3e-8782-ce0ee9c78520"
+				"spark.autotune.trackingId": "92496072-b073-4371-ba54-54fa87af0b85"
 			}
 		},
 		"metadata": {
@@ -61,7 +61,7 @@
 					}
 				},
 				"source": [
-					"## Specify Storage Account, Avro Schema"
+					"## Avro to Parquet Conversion Example using PySpark"
 				]
 			},
 			{
@@ -78,6 +78,7 @@
 					}
 				},
 				"source": [
+					"#Specify Data Lake Storage Account, Avro Schema\r\n",
 					"accountName = 'adlsfhirnonprod'\r\n",
 					"basePath = \"abfss://raw@\" + accountName + \".dfs.core.windows.net/\"\r\n",
 					"\r\n",
@@ -105,74 +106,17 @@
 					"    \"type\" : [ \"null\", \"string\" ]\r\n",
 					"  } ]\r\n",
 					"}\r\n",
-					"'''"
-				],
-				"execution_count": 33
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"## Read Avro file, Apply Schema and Write Spark Dataframe as Parquet"
-				]
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
+					"'''\r\n",
+					"\r\n",
+					"#Read Avro file, Apply Schema and Write Spark Dataframe as Parquet\r\n",
 					"df = spark.read.format('avro').options(avroSchema=avroSchema).load(basePath + \"twitter.avro\")\r\n",
-					"df.write.mode(\"overwrite\").parquet(basePath + \"twitter.parquet\")"
-				],
-				"execution_count": 34
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"## Read Parquet File as a Spark Dataframe and Display"
-				]
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"collapsed": false
-				},
-				"source": [
+					"df.write.mode(\"overwrite\").parquet(basePath + \"twitter.parquet\")\r\n",
+					"\r\n",
+					"#Read Parquet File as a Spark Dataframe and Display\r\n",
 					"df = spark.read.parquet(basePath + \"twitter.parquet\")\r\n",
 					"display(df)"
 				],
-				"execution_count": 35
+				"execution_count": 36
 			}
 		]
 	}
