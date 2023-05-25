@@ -1,0 +1,136 @@
+{
+	"name": "nb-avro-to-parquet",
+	"properties": {
+		"folder": {
+			"name": "FHIR"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "sparknonprodmd",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "56g",
+			"driverCores": 8,
+			"executorMemory": "56g",
+			"executorCores": 8,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "ba5c3ed8-029a-4168-91a3-f9779d60183f"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/b3d87898-3bc9-4864-ba33-06c31dea9d94/resourceGroups/rg-cdw-nonprod/providers/Microsoft.Synapse/workspaces/wkspc-cdw-nonprod/bigDataPools/sparknonprodmd",
+				"name": "sparknonprodmd",
+				"type": "Spark",
+				"endpoint": "https://wkspc-cdw-nonprod.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/sparknonprodmd",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.3",
+				"nodeCount": 10,
+				"cores": 8,
+				"memory": 56,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"accountName = 'adlsfhirnonprod'\r\n",
+					"basePath = \"abfss://raw@\" + accountName + \".dfs.core.windows.net/\""
+				],
+				"execution_count": 30
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"avroSchema = '''{\r\n",
+					"  \"type\" : \"record\",\r\n",
+					"  \"name\" : \"GenericFromIRecord0\",\r\n",
+					"  \"namespace\" : \"Microsoft.Streaming.Avro\",\r\n",
+					"  \"fields\" : [ {\r\n",
+					"    \"name\" : \"createdat\",\r\n",
+					"    \"type\" : [ \"null\", \"string\" ]\r\n",
+					"  }, {\r\n",
+					"    \"name\" : \"topic\",\r\n",
+					"    \"type\" : [ \"null\", \"string\" ]\r\n",
+					"  }, {\r\n",
+					"    \"name\" : \"sentimentscore\",\r\n",
+					"    \"type\" : [ \"null\", \"long\" ]\r\n",
+					"  }, {\r\n",
+					"    \"name\" : \"eventprocessedutctime\",\r\n",
+					"    \"type\" : [ \"null\", \"string\" ]\r\n",
+					"  }, {\r\n",
+					"    \"name\" : \"partitionid\",\r\n",
+					"    \"type\" : [ \"null\", \"long\" ]\r\n",
+					"  }, {\r\n",
+					"    \"name\" : \"eventenqueuedutctime\",\r\n",
+					"    \"type\" : [ \"null\", \"string\" ]\r\n",
+					"  } ]\r\n",
+					"}\r\n",
+					"'''"
+				],
+				"execution_count": 31
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"df = spark.read.format('avro').options(avroSchema=avroSchema).load(basePath + \"twitter.avro\")\r\n",
+					"df.write.mode(\"overwrite\").parquet(basePath + \"twitter.parquet\")"
+				],
+				"execution_count": 32
+			}
+		]
+	}
+}
