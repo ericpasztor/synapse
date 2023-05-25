@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "ba5c3ed8-029a-4168-91a3-f9779d60183f"
+				"spark.autotune.trackingId": "4335c6f0-5e96-46f7-aa84-dd68707951b4"
 			}
 		},
 		"metadata": {
@@ -52,12 +52,8 @@
 		},
 		"cells": [
 			{
-				"cell_type": "code",
+				"cell_type": "markdown",
 				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
 					"nteract": {
 						"transient": {
 							"deleting": false
@@ -65,10 +61,8 @@
 					}
 				},
 				"source": [
-					"accountName = 'adlsfhirnonprod'\r\n",
-					"basePath = \"abfss://raw@\" + accountName + \".dfs.core.windows.net/\""
-				],
-				"execution_count": 30
+					"## Specify Storage Account, Avro Schema"
+				]
 			},
 			{
 				"cell_type": "code",
@@ -84,6 +78,9 @@
 					}
 				},
 				"source": [
+					"accountName = 'adlsfhirnonprod'\r\n",
+					"basePath = \"abfss://raw@\" + accountName + \".dfs.core.windows.net/\"\r\n",
+					"\r\n",
 					"avroSchema = '''{\r\n",
 					"  \"type\" : \"record\",\r\n",
 					"  \"name\" : \"GenericFromIRecord0\",\r\n",
@@ -113,6 +110,19 @@
 				"execution_count": 31
 			},
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Read Avro file, Apply Schema and Write as Parquet"
+				]
+			},
+			{
 				"cell_type": "code",
 				"metadata": {
 					"jupyter": {
@@ -130,6 +140,25 @@
 					"df.write.mode(\"overwrite\").parquet(basePath + \"twitter.parquet\")"
 				],
 				"execution_count": 32
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"df = spark.read.parquet(basePath + \"twitter.parquet\")\r\n",
+					"display(df)"
+				],
+				"execution_count": null
 			}
 		]
 	}
