@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "9d2aebe9-4ee6-4141-85b8-8ca3ba122657"
+				"spark.autotune.trackingId": "b5471bbd-113b-4b47-8852-fb029140cc91"
 			}
 		},
 		"metadata": {
@@ -114,9 +114,11 @@
 					"#Read API Session Response\r\n",
 					"loginResponse = json.loads(userSession.text)\r\n",
 					"sessionId = loginResponse[\"session_id\"]\r\n",
-					"userId = loginResponse[\"user_id\"]"
+					"userId = loginResponse[\"user_id\"]\r\n",
+					"\r\n",
+					"print(userId)"
 				],
-				"execution_count": 6
+				"execution_count": 5
 			},
 			{
 				"cell_type": "markdown",
@@ -160,14 +162,14 @@
 				"source": [
 					"endpoints = ['workouts', '']\r\n",
 					"\r\n",
-					"https://api.onepeloton.com/api/me\r\n",
+					"#https://api.onepeloton.com/api/me\r\n",
 					"\r\n",
-					"userProfile = apiSession.get('f{baseUrl}/auth/login')\r\n",
+					"#userProfile = apiSession.get('f{baseUrl}/auth/login')\r\n",
 					"\r\n",
-					"workouts = w.get('https://api.onepeloton.com/api/user/be3b20e8abec48c690be7a1ab1abb9de/workouts')\r\n",
+					"workouts = apiSession.get('https://api.onepeloton.com/api/user/be3b20e8abec48c690be7a1ab1abb9de/workouts')\r\n",
 					"print(workouts.text)"
 				],
-				"execution_count": 45
+				"execution_count": 7
 			},
 			{
 				"cell_type": "markdown",
