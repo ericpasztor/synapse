@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "b5471bbd-113b-4b47-8852-fb029140cc91"
+				"spark.autotune.trackingId": "7b33ff1f-7b87-44db-8785-1db8f97a73fc"
 			}
 		},
 		"metadata": {
@@ -166,10 +166,10 @@
 					"\r\n",
 					"#userProfile = apiSession.get('f{baseUrl}/auth/login')\r\n",
 					"\r\n",
-					"workouts = apiSession.get('https://api.onepeloton.com/api/user/be3b20e8abec48c690be7a1ab1abb9de/workouts')\r\n",
+					"workouts = apiSession.get('https://api.onepeloton.com/api/user/be3b20e8abec48c690be7a1ab1abb9de/workouts?limit=500&page=5')\r\n",
 					"print(workouts.text)"
 				],
-				"execution_count": 7
+				"execution_count": 18
 			},
 			{
 				"cell_type": "markdown",
