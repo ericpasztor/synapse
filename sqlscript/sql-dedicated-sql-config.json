@@ -7,7 +7,7 @@
 				"language": "sql"
 			},
 			"currentConnection": {
-				"databaseName": "master",
+				"databaseName": "dsqlnonprod",
 				"poolName": "dsqlnonprod"
 			},
 			"resultLimit": 5000
