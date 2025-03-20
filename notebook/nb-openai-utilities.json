@@ -16,20 +16,17 @@
 			"executorMemory": "28g",
 			"executorCores": 4,
 			"numExecutors": 2,
+			"runAsWorkspaceSystemIdentity": false,
 			"conf": {
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "b5c853c3-6203-437d-8248-015ad7ac242d"
+				"spark.autotune.trackingId": "3a0e38a9-a0d8-4c7e-9ccd-0dbbf64bbac8"
 			}
 		},
 		"metadata": {
 			"saveOutput": true,
 			"enableDebugMode": false,
-			"kernelspec": {
-				"name": "synapse_pyspark",
-				"display_name": "Synapse PySpark"
-			},
 			"language_info": {
 				"name": "python"
 			},
@@ -40,13 +37,14 @@
 				"endpoint": "https://wkspc-cdw-nonprod.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/sparknonprod",
 				"auth": {
 					"type": "AAD",
-					"authResource": "https://dev.azuresynapse.net"
+					"authResource": "https://dev.azuresynapse.net",
+					"authHeader": null
 				},
 				"sparkVersion": "3.2",
 				"nodeCount": 10,
 				"cores": 4,
 				"memory": 28,
-				"automaticScaleJobs": false
+				"extraHeader": null
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -87,7 +85,7 @@
 					"\r\n",
 					"print(formatted_response)"
 				],
-				"execution_count": 16
+				"execution_count": 14
 			},
 			{
 				"cell_type": "code",
@@ -127,8 +125,7 @@
 					"response = openai.Completion.create(engine=deployment_name, prompt=start_phrase, max_tokens=10)\r\n",
 					"text = response['choices'][0]['text'].replace('\\n', '').replace(' .', '.').strip()\r\n",
 					"print(start_phrase+text)"
-				],
-				"execution_count": null
+				]
 			}
 		]
 	}

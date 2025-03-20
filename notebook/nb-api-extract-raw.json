@@ -21,16 +21,12 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "7b33ff1f-7b87-44db-8785-1db8f97a73fc"
+				"spark.autotune.trackingId": "dbe07de4-0857-48c6-b5f8-7b1ad4bd6ed5"
 			}
 		},
 		"metadata": {
 			"saveOutput": true,
 			"enableDebugMode": false,
-			"kernelspec": {
-				"name": "synapse_pyspark",
-				"display_name": "Synapse PySpark"
-			},
 			"language_info": {
 				"name": "python"
 			},
@@ -41,13 +37,14 @@
 				"endpoint": "https://wkspc-cdw-nonprod.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/sparknonprod",
 				"auth": {
 					"type": "AAD",
-					"authResource": "https://dev.azuresynapse.net"
+					"authResource": "https://dev.azuresynapse.net",
+					"authHeader": null
 				},
 				"sparkVersion": "3.2",
 				"nodeCount": 10,
 				"cores": 4,
 				"memory": 28,
-				"automaticScaleJobs": false
+				"extraHeader": null
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -114,11 +111,9 @@
 					"#Read API Session Response\r\n",
 					"loginResponse = json.loads(userSession.text)\r\n",
 					"sessionId = loginResponse[\"session_id\"]\r\n",
-					"userId = loginResponse[\"user_id\"]\r\n",
-					"\r\n",
-					"print(userId)"
+					"userId = loginResponse[\"user_id\"]"
 				],
-				"execution_count": 5
+				"execution_count": 6
 			},
 			{
 				"cell_type": "markdown",
@@ -162,14 +157,14 @@
 				"source": [
 					"endpoints = ['workouts', '']\r\n",
 					"\r\n",
-					"#https://api.onepeloton.com/api/me\r\n",
+					"https://api.onepeloton.com/api/me\r\n",
 					"\r\n",
-					"#userProfile = apiSession.get('f{baseUrl}/auth/login')\r\n",
+					"userProfile = apiSession.get('f{baseUrl}/auth/login')\r\n",
 					"\r\n",
-					"workouts = apiSession.get('https://api.onepeloton.com/api/user/be3b20e8abec48c690be7a1ab1abb9de/workouts?limit=500&page=5')\r\n",
+					"workouts = w.get('https://api.onepeloton.com/api/user/be3b20e8abec48c690be7a1ab1abb9de/workouts')\r\n",
 					"print(workouts.text)"
 				],
-				"execution_count": 18
+				"execution_count": 45
 			},
 			{
 				"cell_type": "markdown",
