@@ -7,10 +7,23 @@
 			"metadata": "Workspace name",
 			"defaultValue": "wkspc-cdw-nonprod"
 		},
+		"lsadlsfhirnonprod_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'lsadlsfhirnonprod'"
+		},
+		"lsdsqlnonprod_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'lsdsqlnonprod'",
+			"defaultValue": "Integrated Security=False;Encrypt=True;Connection Timeout=30;Data Source=wkspc-cdw-nonprod.sql.azuresynapse.net;Initial Catalog=dsqlnonprod"
+		},
 		"wkspc-cdw-nonprod-WorkspaceDefaultSqlServer_connectionString": {
 			"type": "secureString",
 			"metadata": "Secure string for 'connectionString' of 'wkspc-cdw-nonprod-WorkspaceDefaultSqlServer'",
 			"defaultValue": "Integrated Security=False;Encrypt=True;Connection Timeout=30;Data Source=tcp:wkspc-cdw-nonprod.sql.azuresynapse.net,1433;Initial Catalog=@{linkedService().DBName}"
+		},
+		"lsadkvdenonprod_properties_typeProperties_baseUrl": {
+			"type": "string",
+			"defaultValue": "https://kv-de-nonprod.vault.azure.net/"
 		},
 		"lsakvcdwnonprod_properties_typeProperties_baseUrl": {
 			"type": "string",
@@ -19,16 +32,185 @@
 		"wkspc-cdw-nonprod-WorkspaceDefaultStorage_properties_typeProperties_url": {
 			"type": "string",
 			"defaultValue": "https://adlscdwnonprod.dfs.core.windows.net"
-		},
-		"lsadkvdenonprod_properties_typeProperties_baseUrl": {
-			"type": "string",
-			"defaultValue": "https://kv-de-nonprod.vault.azure.net/"
 		}
 	},
 	"variables": {
 		"workspaceId": "[concat('Microsoft.Synapse/workspaces/', parameters('workspaceName'))]"
 	},
 	"resources": [
+		{
+			"name": "[concat(parameters('workspaceName'), '/pl-load-fhir-dw')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"activities": [
+					{
+						"name": "nb-silver-to-sql-facts",
+						"type": "SynapseNotebook",
+						"dependsOn": [
+							{
+								"activity": "nb-silver-to-sql-dimensions",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "nb-silver-to-sql-facts",
+								"type": "NotebookReference"
+							},
+							"snapshot": true,
+							"sparkPool": {
+								"referenceName": "sparknonprod31",
+								"type": "BigDataPoolReference"
+							},
+							"executorSize": "Large",
+							"conf": {
+								"spark.dynamicAllocation.enabled": true,
+								"spark.dynamicAllocation.minExecutors": 2,
+								"spark.dynamicAllocation.maxExecutors": 6
+							},
+							"driverSize": "Large",
+							"numExecutors": 2
+						}
+					},
+					{
+						"name": "nb-silver-to-sql-dimensions",
+						"type": "SynapseNotebook",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "nb-silver-to-sql-dimensions",
+								"type": "NotebookReference"
+							},
+							"snapshot": true,
+							"sparkPool": {
+								"referenceName": "sparknonprod31",
+								"type": "BigDataPoolReference"
+							},
+							"executorSize": "Large",
+							"conf": {
+								"spark.dynamicAllocation.enabled": true,
+								"spark.dynamicAllocation.minExecutors": 2,
+								"spark.dynamicAllocation.maxExecutors": 6
+							},
+							"driverSize": "Large",
+							"numExecutors": 2
+						}
+					},
+					{
+						"name": "sql-delete-expired-fact-data",
+						"type": "SqlPoolStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "nb-silver-to-sql-facts",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"sqlPool": {
+							"referenceName": "dsqlnonprod",
+							"type": "SqlPoolReference"
+						},
+						"typeProperties": {
+							"storedProcedureName": "[fhir].[deleteExpiredFactData]"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/notebooks/nb-silver-to-sql-facts')]",
+				"[concat(variables('workspaceId'), '/bigDataPools/sparknonprod31')]",
+				"[concat(variables('workspaceId'), '/notebooks/nb-silver-to-sql-dimensions')]",
+				"[concat(variables('workspaceId'), '/sqlPools/dsqlnonprod')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/test')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"activities": [
+					{
+						"name": "Fail1",
+						"type": "Fail",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"message": "Testing",
+							"errorCode": "500"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/lsadkvdenonprod')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"annotations": [],
+				"type": "AzureKeyVault",
+				"typeProperties": {
+					"baseUrl": "[parameters('lsadkvdenonprod_properties_typeProperties_baseUrl')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/lsadlsfhirnonprod')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobStorage",
+				"typeProperties": {
+					"connectionString": "[parameters('lsadlsfhirnonprod_connectionString')]"
+				},
+				"connectVia": {
+					"referenceName": "AutoResolveIntegrationRuntime",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
+			]
+		},
 		{
 			"name": "[concat(parameters('workspaceName'), '/lsakvcdwnonprod')]",
 			"type": "Microsoft.Synapse/workspaces/linkedServices",
@@ -41,6 +223,25 @@
 				}
 			},
 			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/lsdsqlnonprod')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"annotations": [],
+				"type": "AzureSqlDW",
+				"typeProperties": {
+					"connectionString": "[parameters('lsdsqlnonprod_connectionString')]"
+				},
+				"connectVia": {
+					"referenceName": "AutoResolveIntegrationRuntime",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('workspaceName'), '/wkspc-cdw-nonprod-WorkspaceDefaultSqlServer')]",
@@ -111,12 +312,315 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('workspaceName'), '/dfcopySilver')]",
+			"type": "Microsoft.Synapse/workspaces/dataflows",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"linkedService": {
+								"referenceName": "lsadlsfhirnonprod",
+								"type": "LinkedServiceReference"
+							},
+							"name": "claimMainDelta"
+						}
+					],
+					"sinks": [
+						{
+							"linkedService": {
+								"referenceName": "lsdsqlnonprod",
+								"type": "LinkedServiceReference"
+							},
+							"name": "fhirDW"
+						}
+					],
+					"transformations": [],
+					"scriptLines": [
+						"source(output(",
+						"          claim_id as string,",
+						"          resourceType as string,",
+						"          status as string,",
+						"          billablePeriod_end as string,",
+						"          billablePeriod_start as string,",
+						"          created as string,",
+						"          patient_display as string,",
+						"          patient_id_reference as string,",
+						"          prescription_reference as string,",
+						"          provider_display as string,",
+						"          provider_org_id_reference as string,",
+						"          total_currency as string,",
+						"          total_value as double,",
+						"          use as string,",
+						"          year as integer,",
+						"          month as string,",
+						"          day as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     limit: 100,",
+						"     ignoreNoFilesFound: false,",
+						"     format: 'delta',",
+						"     container: 'silver',",
+						"     folderPath: '30tb/Claim_main/year=2021') ~> claimMainDelta",
+						"claimMainDelta sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     format: 'table',",
+						"     store: 'synapseanalytics',",
+						"     schemaName: 'fhir',",
+						"     tableName: 'claimMain',",
+						"     insertable: true,",
+						"     updateable: false,",
+						"     deletable: false,",
+						"     upsertable: false,",
+						"     allowCopyCommand: true,",
+						"     staged: true,",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     errorHandlingOption: 'stopOnFirstError') ~> fhirDW"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/linkedServices/lsadlsfhirnonprod')]",
+				"[concat(variables('workspaceId'), '/linkedServices/lsdsqlnonprod')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('workspaceName'), '/WorkspaceSystemIdentity')]",
 			"type": "Microsoft.Synapse/workspaces/credentials",
 			"apiVersion": "2019-06-01-preview",
 			"properties": {
 				"type": "ManagedIdentity",
 				"typeProperties": {}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/default')]",
+			"type": "Microsoft.Synapse/workspaces/managedVirtualNetworks",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/create-ldw-external-tables')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "CREATE EXTERNAL FILE FORMAT DeltaFileFormat\nWITH (\n    FORMAT_TYPE = DELTA\n);\n\nCREATE EXTERNAL FILE FORMAT ParquetFileFormat\nWITH (\n    FORMAT_TYPE = PARQUET,\n    DATA_COMPRESSION = 'org.apache.hadoop.io.compress.SnappyCodec'\n);\n\nCREATE EXTERNAL FILE FORMAT jsonFileFormat\nWITH (\n    FORMAT_TYPE = JSON\n);\n\nCREATE EXTERNAL TABLE silver.patientAddress\n(\n    patient_id varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    address_city varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    address_country varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    address_line varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    address_postalCode varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    address_state varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    address_extension_extension_url varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    address_extension_extension_valueDecimal float,\n    address_extension_url varchar(100) COLLATE Latin1_General_100_BIN2_UTF8\n)  \nWITH (\n    LOCATION = 'Patient_address',\n    DATA_SOURCE = silver,  \n    FILE_FORMAT = DeltaFileFormat\n)\nGO\n\nCREATE EXTERNAL TABLE silver.patientIdentifier\n(\n    patient_id varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    birthDate varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    deceasedDateTime varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    gender varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    maritalStatus_text varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    maritalStatus_coding_code varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    maritalStatus_coding_display varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    maritalStatus_coding_system varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    multipleBirthBoolean bit,\n    multipleBirthInteger bigint,\n    resourceType varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    text_div varchar(1000) COLLATE Latin1_General_100_BIN2_UTF8,\n    text_status varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    identifier_system varchar(100) COLLATE Latin1_General_100_BIN2_UTF8,\n    identifier_type_coding_code varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    identifier_type_coding_system varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    identifier_type_text varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    identifier_value varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    name_family varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    name_given varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    name_prefix varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    name_suffix varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    name_use varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    telecom_system varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    telecom_use varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    telecom_value varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    communication_language_text varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    communication_language_coding_code varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    communication_language_coding_display varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    communication_language_coding_system varchar(64) COLLATE Latin1_General_100_BIN2_UTF8\n)  \nWITH (\n    LOCATION = 'Patient_identifier',\n    DATA_SOURCE = silver,  \n    FILE_FORMAT = DeltaFileFormat\n)\nGO\n\nCREATE EXTERNAL TABLE silver.patientExtension\n(\n    patient_id varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    extension_url varchar(100) COLLATE Latin1_General_100_BIN2_UTF8,\n    extension_valueAddress_city varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    extension_valueAddress_country varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    extension_valueAddress_state varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    extension_valueDecimal float,\n    extension_valueString varchar(64) COLLATE Latin1_General_100_BIN2_UTF8\n)  \nWITH (\n    LOCATION = 'Patient_extension',\n    DATA_SOURCE = silver,  \n    FILE_FORMAT = DeltaFileFormat\n)\nGO\n\n-- use CETAS to export select statement with OPENROWSET result to  storage\nCREATE EXTERNAL TABLE silver.patientIdentifierPersisted\nWITH (\n    LOCATION = 'materializedViews/PatientIdentifier',\n    DATA_SOURCE = silver,  \n    FILE_FORMAT = ParquetFileFormat\n)  \nAS\nselect \n    patient_id,\n    birthDate,\n    deceasedDateTime,\n    gender,\n    maritalStatus_text,\n    maritalStatus_coding_code,\n    maritalStatus_coding_display,\n    maritalStatus_coding_system,\n    multipleBirthBoolean,\n    multipleBirthInteger,\n    resourceType,\n    text_div,\n    text_status,\n    identifier_system,\n    identifier_type_coding_code,\n    identifier_type_coding_system,\n    identifier_type_text,\n    identifier_value,\n    name_family,\n    name_given,\n    name_prefix,\n    name_suffix,\n    name_use,\n    telecom_system,\n    telecom_use,\n    telecom_value,\n    communication_language_text,\n    communication_language_coding_code,\n    communication_language_coding_display,\n    communication_language_coding_system\nfrom\nsilver.patientIdentifierView\n\nGO\n\nCREATE EXTERNAL TABLE silver.patientAddressPersisted\nWITH (\n    LOCATION = 'materializedViews/PatientAddress',\n    DATA_SOURCE = silver,  \n    FILE_FORMAT = ParquetFileFormat\n)  \nAS\nselect \n    patient_id,\n    address_city,\n    address_country,\n    address_line,\n    address_postalCode,\n    address_state,\n    address_extension_extension_url,\n    address_extension_extension_valueDecimal,\n    address_extension_url\nfrom\nsilver.patientAddressView;\n\ndrop EXTERNAL TABLE silver.patientExtensionPersisted;\n\nCREATE EXTERNAL TABLE silver.patientExtensionPersisted\nWITH (\n    LOCATION = 'materializedViews/PatientExtension',\n    DATA_SOURCE = silver,  \n    FILE_FORMAT = ParquetFileFormat\n)  \nAS\nselect \n    patient_id,\n    extension_url,\n    extension_valueAddress_city,\n    extension_valueAddress_country,\n    extension_valueAddress_state,\n    extension_valueDecimal,\n    extension_valueString\nfrom\nsilver.patientExtensionView;\n\n\nCREATE STATISTICS [statPatientIdentifierPersistedPatientId] ON silver.patientIdentifierPersisted(patient_id);\nCREATE STATISTICS [statPatientIdentifierPersistedGender] ON silver.patientIdentifierPersisted(gender);\nCREATE STATISTICS [statPatientIdentifierPersistedBirthDate] ON silver.patientIdentifierPersisted(birthDate);\n\n\n\n\n",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "ldw",
+						"poolName": "Built-in"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/create-sql-tables')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "CREATE TABLE fhir.patientAddress\n(\n    patient_id varchar(64),\n    address_city varchar(64),\n    address_country varchar(64),\n    address_line varchar(64),\n    address_postalCode varchar(64),\n    address_state varchar(64),\n    address_extension_extension_url varchar(64),\n    address_extension_extension_valueDecimal float,\n    address_extension_url varchar(100)\n)\nWITH( \n HEAP, \n DISTRIBUTION = REPLICATE\n);\n\ndrop TABLE fhir.patientIdentifier;\n\nCREATE TABLE fhir.patientIdentifier\n(\n    patient_id varchar(64),\n    birthDate varchar(64),\n    deceasedDateTime varchar(64),\n    gender varchar(64),\n    maritalStatus_text varchar(64),\n    maritalStatus_coding_code varchar(64),\n    maritalStatus_coding_display varchar(64),\n    maritalStatus_coding_system varchar(64),\n    multipleBirthBoolean bit,\n    multipleBirthInteger bigint,\n    resourceType varchar(64),\n    text_div varchar(1000),\n    text_status varchar(64),\n    identifier_system varchar(100),\n    identifier_type_coding_code varchar(64),\n    identifier_type_coding_display varchar(64),\n    identifier_type_coding_system varchar(64),\n    identifier_type_text varchar(64),\n    identifier_value varchar(64),\n    name_family varchar(64),\n    name_given varchar(64),\n    name_prefix varchar(64),\n    name_suffix varchar(64),\n    name_use varchar(64),\n    telecom_system varchar(64),\n    telecom_use varchar(64),\n    telecom_value varchar(64),\n    communication_language_text varchar(64),\n    communication_language_coding_code varchar(64),\n    communication_language_coding_display varchar(64),\n    communication_language_coding_system varchar(64)\n)\nWITH( \n HEAP, \n DISTRIBUTION = REPLICATE\n);\n\ndrop table fhir.patientExtension;\n\nCREATE TABLE fhir.patientExtension\n(\n    patient_id varchar(64),\n    extension_url varchar(100),\n    extension_valueAddress_city varchar(64),\n    extension_valueAddress_country varchar(64),\n    extension_valueAddress_state varchar(64),\n    extension_valueDecimal float,\n    extension_valueString varchar(64)\n)\nWITH( \n HEAP, \n DISTRIBUTION = REPLICATE\n);\n\nCREATE TABLE fhir.observationCategory\n(\n    observation_id varchar(64),\n    category_code varchar(64),\n    category_display varchar(64),\n    category_system varchar(64),\n    year int,\n    month varchar(2),\n    day varchar(2)\n)\nWITH( \n CLUSTERED COLUMNSTORE INDEX, \n DISTRIBUTION = HASH(observation_id)\n);\n\nCREATE TABLE fhir.observationComponent\n(\n    observation_id varchar(64),\n    component_code varchar(64),\n    component_display varchar(64),\n    component_system varchar(64),\n    component_text varchar(64),\n    component_valueQuantity_code varchar(64),\n    component_valueQuantity_system varchar(64),\n    component_valueQuantity_unit varchar(64),\n    component_valueQuantity_value float,\n    year int,\n    month varchar(2),\n    day varchar(2)\n)\nWITH( \n CLUSTERED COLUMNSTORE INDEX, \n DISTRIBUTION = HASH(observation_id)\n);\n\ndrop TABLE fhir.observationCode;\n\nCREATE TABLE fhir.observationCode\n(\n    observation_id varchar(64),\n    code_text varchar(100),\n    coding_code varchar(64),\n    coding_display varchar(100),\n    coding_system varchar(64),\n    year int,\n    month varchar(2),\n    day varchar(2)\n)\nWITH( \n CLUSTERED COLUMNSTORE INDEX, \n DISTRIBUTION = HASH(observation_id)\n);\n\ndrop table fhir.observationMain;\n\ndrop TABLE fhir.observationMain;\n\nselect count_big(*) from fhir.observationMain\n\nCREATE TABLE fhir.observationMain\n(\n    observation_id varchar(64),\n    resourceType varchar(64),\n    issued varchar(64),\n   -- issuedDate date,\n    status varchar(64),\n    patient_id_reference varchar(64),\n    encounter_id_reference varchar(64),\n    effectiveDateTime varchar(64),\n   -- effectiveDate date,\n    valueQuantity_code varchar(64),\n    valueQuantity_system varchar(64),\n    valueQuantity_unit varchar(64),\n    valueQuantity_value float,\n    valueString varchar(64),\n    year int,\n    month varchar(2),\n    day varchar(2)\n)\nWITH( \n CLUSTERED COLUMNSTORE INDEX, \n DISTRIBUTION = HASH(observation_id)\n);\n\ndrop TABLE fhir.claimMain;\n\nCREATE TABLE fhir.claimMain\n(\n    claim_id varchar(64),\n    resourceType varchar(64),\n    status varchar(64),\n    billablePeriod_end varchar(64),\n    billablePeriod_start varchar(64),\n    --billablePeriodStartDate date,\n    --billablePeriodEndDate date,\n    created varchar(64),\n    --createdDate date,\n    patient_display varchar(64),\n    patient_id_reference varchar(64),\n    prescription_reference varchar(64),\n    provider_display varchar(100),\n    provider_org_id_reference varchar(64),\n    total_currency varchar(64),\n    total_value float,\n    isuse varchar(64),\n    year int,\n    month varchar(2),\n    day varchar(2)\n)\nWITH( \n CLUSTERED COLUMNSTORE INDEX, \n DISTRIBUTION = HASH(claim_id)\n);\n\ndrop TABLE fhir.claimInsurance;\n\nCREATE TABLE fhir.claimInsurance\n(\n    claim_id varchar(64),\n    insurance_coverage_display varchar(64),\n    insurance_focal bit,\n    insurance_sequence bigint,\n    year int,\n    month varchar(2),\n    day varchar(2)\n)\nWITH( \n CLUSTERED COLUMNSTORE INDEX, \n DISTRIBUTION = HASH(claim_id)\n);\n\ndrop TABLE fhir.claimDiagnosis;\n\nCREATE TABLE fhir.claimDiagnosis\n(\n    claim_id varchar(64),\n    diagnosis_reference varchar(64),\n    diagnosis_sequence bigint,\n    year int,\n    month varchar(2),\n    day varchar(2)\n)\nWITH( \n CLUSTERED COLUMNSTORE INDEX, \n DISTRIBUTION = HASH(claim_id)\n);\n\nCREATE TABLE fhir.claimProcedure\n(\n    claim_id varchar(64),\n    procedure_reference varchar(64),\n    procedure_sequence bigint,\n    year int,\n    month varchar(2),\n    day varchar(2)\n)\nWITH( \n CLUSTERED COLUMNSTORE INDEX, \n DISTRIBUTION = HASH(claim_id)\n);\n\n\ndrop TABLE staging.claimMain;\n\nCREATE TABLE staging.claimMain\n(\n    claim_id varchar(64),\n    resourceType varchar(64),\n    status varchar(64),\n    billablePeriod_end varchar(64),\n    billablePeriod_start varchar(64),\n    created varchar(64),\n    patient_display varchar(64),\n    patient_id_reference varchar(64),\n    prescription_reference varchar(64),\n    provider_display varchar(100),\n    provider_org_id_reference varchar(64),\n    total_currency varchar(64),\n    total_value float,\n    isuse varchar(64),\n    year int,\n    month varchar(2),\n    day varchar(2)\n)\nWITH( \n DISTRIBUTION = ROUND_ROBIN,\n CLUSTERED COLUMNSTORE INDEX\n);\n\nCREATE TABLE staging.observationMain\n(\n    observation_id varchar(64),\n    resourceType varchar(64),\n    issued varchar(64),\n    status varchar(64),\n    patient_id_reference varchar(64),\n    encounter_id_reference varchar(64),\n    effectiveDateTime varchar(64),\n    valueQuantity_code varchar(64),\n    valueQuantity_system varchar(64),\n    valueQuantity_unit varchar(64),\n    valueQuantity_value float,\n    valueString varchar(64),\n    year int,\n    month varchar(2),\n    day varchar(2)\n)\nWITH( \n DISTRIBUTION = ROUND_ROBIN,\n CLUSTERED COLUMNSTORE INDEX\n);\n\nEXECUTE AS USER = 'ELTUser'\nCREATE TABLE fhir.observationMain_new\nWITH\n(\n CLUSTERED COLUMNSTORE INDEX, \n DISTRIBUTION = HASH(observation_id)\n)\nAS \nSELECT\nobservation_id,\n    resourceType,\n    issued,\n    status,\n    patient_id_reference,\n    encounter_id_reference,\n    effectiveDateTime,\n    valueQuantity_code,\n    valueQuantity_system,\n    valueQuantity_unit,\n    valueQuantity_value,\n    valueString,\n    cast(valueQuantity_value as int) as valueQuantity_valueInt,\n    year,\n    month,\n    day\nFROM    fhir.observationMain \nOPTION (LABEL = 'data_loads');\nREVERT;\n\nRENAME OBJECT fhir.observationMain TO [observationMain_old];\nRENAME OBJECT fhir.observationMain_new TO [observationMain];\n\nDROP TABLE fhir.observationMain_old;\n\nDROP TABLE staging.claimMain;\n\nCREATE TABLE staging.claimMain\n(\n    claim_id varchar(64),\n    resourceType varchar(64),\n    status varchar(64),\n    billablePeriod_end varchar(64),\n    billablePeriod_start varchar(64),\n    created varchar(64),\n    patient_display varchar(64),\n    patient_id_reference varchar(64),\n    prescription_reference varchar(64),\n    provider_display varchar(100),\n    provider_org_id_reference varchar(64),\n    total_currency varchar(64),\n    total_value float,\n    [use] varchar(64),\n    year int,\n    month varchar(2),\n    day varchar(2)\n)\nWITH( \n DISTRIBUTION = ROUND_ROBIN,\n CLUSTERED COLUMNSTORE INDEX\n);",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "dsqlnonprod",
+						"poolName": "dsqlnonprod"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/create-vstats-columns')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "CREATE VIEW dbo.vstats_columns\nAS\nSELECT\n        sm.[name]                           AS [schema_name]\n,       tb.[name]                           AS [table_name]\n,       st.[name]                           AS [stats_name]\n,       st.[filter_definition]              AS [stats_filter_definition]\n,       st.[has_filter]                     AS [stats_is_filtered]\n,       STATS_DATE(st.[object_id],st.[stats_id])\n                                            AS [stats_last_updated_date]\n,       co.[name]                           AS [stats_column_name]\n,       ty.[name]                           AS [column_type]\n,       co.[max_length]                     AS [column_max_length]\n,       co.[precision]                      AS [column_precision]\n,       co.[scale]                          AS [column_scale]\n,       co.[is_nullable]                    AS [column_is_nullable]\n,       co.[collation_name]                 AS [column_collation_name]\n,       QUOTENAME(sm.[name])+'.'+QUOTENAME(tb.[name])\n                                            AS two_part_name\n,       QUOTENAME(DB_NAME())+'.'+QUOTENAME(sm.[name])+'.'+QUOTENAME(tb.[name])\n                                            AS three_part_name\nFROM    sys.objects                         AS ob\nJOIN    sys.stats           AS st ON    ob.[object_id]      = st.[object_id]\nJOIN    sys.stats_columns   AS sc ON    st.[stats_id]       = sc.[stats_id]\n                            AND         st.[object_id]      = sc.[object_id]\nJOIN    sys.columns         AS co ON    sc.[column_id]      = co.[column_id]\n                            AND         sc.[object_id]      = co.[object_id]\nJOIN    sys.types           AS ty ON    co.[user_type_id]   = ty.[user_type_id]\nJOIN    sys.tables          AS tb ON    co.[object_id]      = tb.[object_id]\nJOIN    sys.schemas         AS sm ON    tb.[schema_id]      = sm.[schema_id]\nWHERE   st.[user_created] = 1\n;\n\nSELECT\n    sm.[name] AS [schema_name],\n    tb.[name] AS [table_name],\n    co.[name] AS [stats_column_name],\n    st.[name] AS [stats_name],\n    STATS_DATE(st.[object_id],st.[stats_id]) AS [stats_last_updated_date]\nFROM\n    sys.objects ob\n    JOIN sys.stats st\n        ON  ob.[object_id] = st.[object_id]\n    JOIN sys.stats_columns sc\n        ON  st.[stats_id] = sc.[stats_id]\n        AND st.[object_id] = sc.[object_id]\n    JOIN sys.columns co\n        ON  sc.[column_id] = co.[column_id]\n        AND sc.[object_id] = co.[object_id]\n    JOIN sys.types  ty\n        ON  co.[user_type_id] = ty.[user_type_id]\n    JOIN sys.tables tb\n        ON  co.[object_id] = tb.[object_id]\n    JOIN sys.schemas sm\n        ON  tb.[schema_id] = sm.[schema_id]\nWHERE\n    st.[user_created] = 1;\n",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "ldw",
+						"poolName": "Built-in"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/sql-bronze-exploration')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "SELECT   TOP 100 *\nFROM\n    OPENROWSET(\n        BULK 'https://medicaldl.dfs.core.windows.net/raw/fhir_ndjson/1tb/*/Observation.ndjson',\n        FORMAT = 'CSV',\n        FIELDQUOTE = '0x0b',\n        FIELDTERMINATOR ='0x0b'\n    )\n    WITH (\n        line varchar(max)\n    ) AS [result]\n\nSELECT   TOP 100 *\nFROM\n    OPENROWSET(\n        BULK 'Observation.ndjson',\n        DATA_SOURCE = 'JSONSource',\n        FORMAT = 'CSV',\n        FIELDQUOTE = '0x0b',\n        FIELDTERMINATOR ='0x0b'\n    )\n    WITH (\n        line varchar(max)\n    ) AS [result]\n\n/* Flatten the NDJSO with JSON_VALUE, JSON_QUERY on CROSS APPLY OPENJSON */\n/* refreence: https://diangermishuizen.com/query-json-data-in-sql-server-and-synapse-analytics/ */\n/* Query 1, with only JSON_VALUE, JSON_QUERY */\nSELECT top 100\n    JSON_VALUE(line, '$.resourceType') AS resourceType,\n    JSON_VALUE(line, '$.id') AS id,\n    JSON_VALUE(line, '$.status') AS status,\n    JSON_query(line, '$.category') AS category_string ,\n    JSON_query(line, '$.code') AS code_string\nFROM\n    OPENROWSET(\n        BULK 'Observation.ndjson',\n        DATA_SOURCE = 'JSONSource',\n        FORMAT = 'CSV',\n        -- FIELDQUOTE and FIELDTERMINATOR are set to 0x0b as we do not expect to find it in the file.\n        FIELDQUOTE = '0x0b',\n        FIELDTERMINATOR ='0x0b'\n    )\n    WITH (\n        line varchar(max)\n    ) AS [result]\n\n/* Query 2, add CROSS APPLY OPENJSON to read array */\nSELECT  top 100\n    JSON_VALUE(line, '$.resourceType') AS resourceType,\n    JSON_VALUE(line, '$.id') AS id,\n    JSON_VALUE(line, '$.status') AS status,\n    JSON_query(line, '$.valueQuantity') AS valueQuantity_string,\n    valueQuantity_NestedArray_value,\n    valueQuantity_NestedArray_unit ,\n    JSON_query(line, '$.category') AS category_string\nFROM\n    OPENROWSET(\n        BULK 'Observation.ndjson',\n        DATA_SOURCE = 'JSONSource',\n        FORMAT = 'CSV',\n        -- FIELDQUOTE and FIELDTERMINATOR are set to 0x0b as we do not expect to find it in the file.\n        FIELDQUOTE = '0x0b',\n        FIELDTERMINATOR ='0x0b'\n    )\n    WITH (\n        line varchar(max)\n    ) AS [result]\nCROSS APPLY OPENJSON \n    (JSON_QUERY([line], '$.valueQuantity')) /*Note, if you want only the top most record from this array, replace this line with \"(JSON_QUERY([jsonContent], '$.attribute_with_nested_array[0]'))\"*/\nWITH(\n    [valueQuantity_NestedArray_value] varchar(255) '$.value',\n    [valueQuantity_NestedArray_unit] varchar(255) '$.unit'\n) AS [valueQuantity_NestedArray]\n\n\n/* Query 3, multiple CROSS APPLY OPENJSON to read */\nSELECT  top 100\n    JSON_VALUE(line, '$.resourceType') AS resourceType,\n    JSON_VALUE(line, '$.id') AS id,\n    JSON_VALUE(line, '$.status') AS status,\n    JSON_query(line, '$.valueQuantity') AS valueQuantity_string,\n    valueQuantity_NestedArray_value,\n    valueQuantity_NestedArray_unit ,\n    JSON_query(line, '$.category') AS category_string,\n    encounter_reference\nFROM\n    OPENROWSET(\n        BULK 'Observation.ndjson',\n        DATA_SOURCE = 'JSONSource',\n        FORMAT = 'CSV',\n        -- FIELDQUOTE and FIELDTERMINATOR are set to 0x0b as we do not expect to find it in the file.\n        FIELDQUOTE = '0x0b',\n        FIELDTERMINATOR ='0x0b'\n    )\n    WITH (\n        line varchar(max)\n    ) AS [result]\nCROSS APPLY OPENJSON \n    (JSON_QUERY([line], '$.valueQuantity')) /*Note, if you want only the top most record from this array, replace this line with \"(JSON_QUERY([jsonContent], '$.attribute_with_nested_array[0]'))\"*/\nWITH(\n    [valueQuantity_NestedArray_value] varchar(255) '$.value',\n    [valueQuantity_NestedArray_unit] varchar(255) '$.unit'\n) AS [valueQuantity_NestedArray]\nCROSS APPLY OPENJSON \n    (JSON_QUERY([line], '$.encounter')) \nWITH(\n    [encounter_reference] varchar(255) '$.reference'\n) AS [encounter_reference_NestedArray]",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "master",
+						"poolName": "Built-in"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/sql-create-ldw-views')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "CREATE MASTER KEY ENCRYPTION BY PASSWORD = 'srt=co&sp=rwdlacupyxAB13'\n\nCREATE DATABASE SCOPED CREDENTIAL sqlondemandMI\nWITH IDENTITY='Managed Identity';\n\nCREATE EXTERNAL DATA SOURCE sqlOnDemandMI WITH (\n    LOCATION = 'https://adlsfhirnonprod.dfs.core.windows.net/',\n    CREDENTIAL = sqlondemandMI\n);\n\n\nCREATE DATABASE ldw;\nALTER DATABASE ldw COLLATE Latin1_General_100_BIN2_UTF8;\n\nUSE ldw;\n\nCREATE SCHEMA silver\n\nCREATE EXTERNAL DATA SOURCE silver\nWITH ( location = 'https://adlsfhirnonprod.dfs.core.windows.net/silver/30tb/'),\nCREDENTIAL = sqlondemand );\n\nCREATE EXTERNAL DATA SOURCE bronzeHistory\nWITH ( location = 'https://adlsfhirnonprod.dfs.core.windows.net/bronze/historic_data/30tb/')\n\nCREATE EXTERNAL DATA SOURCE bronzeIncremental\nWITH ( location = 'https://adlsfhirnonprod.dfs.core.windows.net/bronze/incremental_data/30tb/')\n\nCREATE EXTERNAL DATA SOURCE bronzeReference\nWITH ( location = 'https://adlsfhirnonprod.dfs.core.windows.net/bronze/incremental_data/')\n\nDROP VIEW IF EXISTS silver.claimDiagnosisView;\n\nCREATE VIEW silver.claimDiagnosisView \nAS SELECT *\nFROM  \n    OPENROWSET(\n        BULK 'Claim_diagnosis',\n        DATA_SOURCE = 'silver',\n        FORMAT='DELTA'\n    ) \nWITH ( \n    claim_id varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    diagnosis_reference varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    diagnosis_sequence int,\n    year int,\n    month varchar(2) COLLATE Latin1_General_100_BIN2_UTF8,\n    day varchar(2) COLLATE Latin1_General_100_BIN2_UTF8\n    )\n    claimDiagnosis\n\n\nDROP VIEW IF EXISTS silver.claimInsuranceView;\n\nCREATE VIEW silver.claimInsuranceView \nAS SELECT *\nFROM  \n    OPENROWSET(\n        BULK 'Claim_insurance',\n        DATA_SOURCE = 'silver',\n        FORMAT='DELTA'\n    ) \nWITH ( \n    claim_id varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    [insurance_coverage.display] varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    insurance_focal bit,\n    insurance_sequence int,\n    year int,\n    month varchar(2) COLLATE Latin1_General_100_BIN2_UTF8,\n    day varchar(2) COLLATE Latin1_General_100_BIN2_UTF8\n    )\n    claimInsurance;\n\nDROP VIEW IF EXISTS silver.claimMainView;\n\nCREATE VIEW silver.claimMainView \nAS SELECT *\nFROM  \n    OPENROWSET(\n        BULK 'Claim_main',\n        DATA_SOURCE = 'silver',\n        FORMAT='DELTA'\n    ) \nWITH ( \n    claim_id varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    resourceType varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    status varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    billablePeriod_end varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    billablePeriod_start varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    created varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    patient_display varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    patient_id_reference varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    prescription_reference varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    provider_display varchar(100) COLLATE Latin1_General_100_BIN2_UTF8,\n    provider_org_id_reference varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    total_currency varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    total_value float,\n    isuse varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    year int,\n    month varchar(2) COLLATE Latin1_General_100_BIN2_UTF8,\n    day varchar(2) COLLATE Latin1_General_100_BIN2_UTF8\n    )\n    claimMain;\n\nDROP VIEW IF EXISTS silver.claimProcedureView;\n\nCREATE VIEW silver.claimProcedureView \nAS SELECT *\nFROM  \n    OPENROWSET(\n        BULK 'Claim_procedure',\n        DATA_SOURCE = 'silver',\n        FORMAT='DELTA'\n    ) \nWITH ( \n    claim_id varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    procedure_reference varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    procedure_sequence bigint,\n    year int,\n    month varchar(2) COLLATE Latin1_General_100_BIN2_UTF8,\n    day varchar(2) COLLATE Latin1_General_100_BIN2_UTF8\n    )\n    claimProcedure;\n\nDROP VIEW IF EXISTS silver.observationCategoryView;\n\nCREATE VIEW silver.observationCategoryView \nAS SELECT *\nFROM  \n    OPENROWSET(\n        BULK 'Observation_category',\n        DATA_SOURCE = 'silver',\n        FORMAT='DELTA'\n    ) \nWITH ( \n    observation_id varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    category_code varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    category_display varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    category_system varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    year int,\n    month varchar(2) COLLATE Latin1_General_100_BIN2_UTF8,\n    day varchar(2) COLLATE Latin1_General_100_BIN2_UTF8\n    )\n    observationCategory;\n\nDROP VIEW IF EXISTS silver.observationCodeView;\n\nCREATE VIEW silver.observationCodeView \nAS SELECT *\nFROM  \n    OPENROWSET(\n        BULK 'Observation_code',\n        DATA_SOURCE = 'silver',\n        FORMAT='DELTA'\n    ) \nWITH ( \n    observation_id varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    code_text varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    coding_code varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    coding_display varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    coding_system varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    year int,\n    month varchar(2) COLLATE Latin1_General_100_BIN2_UTF8,\n    day varchar(2) COLLATE Latin1_General_100_BIN2_UTF8\n    )\n    observationCode;\n\nDROP VIEW IF EXISTS silver.observationComponentView;\n\nCREATE VIEW silver.observationComponentView \nAS SELECT *\nFROM  \n    OPENROWSET(\n        BULK 'Observation_component',\n        DATA_SOURCE = 'silver',\n        FORMAT='DELTA'\n    ) \nWITH ( \n    observation_id varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    component_code varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    component_display varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    component_system varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    component_text varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    component_valueQuantity_code varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    component_valueQuantity_system varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    component_valueQuantity_unit varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    component_valueQuantity_value float,\n    year int,\n    month varchar(2) COLLATE Latin1_General_100_BIN2_UTF8,\n    day varchar(2) COLLATE Latin1_General_100_BIN2_UTF8\n    )\n    observationComponent;\n\nDROP VIEW IF EXISTS silver.observationMainView;\n\nCREATE VIEW silver.observationMainView \nAS SELECT *\nFROM  \n    OPENROWSET(\n        BULK 'Observation_main',\n        DATA_SOURCE = 'silver',\n        FORMAT='DELTA'\n    ) \nWITH ( \n    observation_id varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    resourceType varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    issued varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    status varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    patient_id_reference varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    encounter_id_reference varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    effectiveDateTime varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    valueQuantity_code varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    valueQuantity_system varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    valueQuantity_unit varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    valueQuantity_value float,\n    valueString varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    year int,\n    month varchar(2) COLLATE Latin1_General_100_BIN2_UTF8,\n    day varchar(2) COLLATE Latin1_General_100_BIN2_UTF8\n    )\n    observationMain;\n\nDROP VIEW IF EXISTS silver.observationValueCodeableConceptView;\n\nCREATE VIEW silver.observationValueCodeableConceptView \nAS SELECT *\nFROM  \n    OPENROWSET(\n        BULK 'Observation_valueCodeableConcept',\n        DATA_SOURCE = 'silver',\n        FORMAT='DELTA'\n    ) \nWITH ( \n    observation_id varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    valueCodeableConcept_code varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    valueCodeableConcept_display varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    valueCodeableConcept_system varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    valueCodeableConcept_text varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    year int,\n    month varchar(2) COLLATE Latin1_General_100_BIN2_UTF8,\n    day varchar(2) COLLATE Latin1_General_100_BIN2_UTF8\n    )\n    observationValueCodeableConcept;\n\nDROP VIEW IF EXISTS silver.patientAddressView;\n\nCREATE VIEW silver.patientAddressView \nAS SELECT *\nFROM  \n    OPENROWSET(\n        BULK 'Patient_address',\n        DATA_SOURCE = 'silver',\n        FORMAT='DELTA'\n    ) \nWITH ( \n    patient_id varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    address_city varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    address_country varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    address_line varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    address_postalCode varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    address_state varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    address_extension_extension_url varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    address_extension_extension_valueDecimal float,\n    address_extension_url varchar(100) COLLATE Latin1_General_100_BIN2_UTF8\n    )\n    patientAddress;\n\n\nDROP VIEW IF EXISTS silver.patientExtensionView;\n\nCREATE VIEW silver.patientExtensionView \nAS SELECT *\nFROM  \n    OPENROWSET(\n        BULK 'Patient_extension',\n        DATA_SOURCE = 'silver',\n        FORMAT='DELTA'\n    ) \nWITH ( \n    patient_id varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    extension_url varchar(100) COLLATE Latin1_General_100_BIN2_UTF8,\n    extension_valueAddress_city varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    extension_valueAddress_country varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    extension_valueAddress_state varchar(100) COLLATE Latin1_General_100_BIN2_UTF8,\n    extension_valueDecimal float,\n    extension_valueString varchar(64) COLLATE Latin1_General_100_BIN2_UTF8\n    )\n    patientExtension;\n\nDROP VIEW IF EXISTS silver.patientIdentifierView;\n\nCREATE VIEW silver.patientIdentifierView \nAS SELECT *\nFROM  \n    OPENROWSET(\n        BULK 'Patient_identifier',\n        DATA_SOURCE = 'silver',\n        FORMAT='DELTA'\n    ) \nWITH ( \n    patient_id varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    birthDate varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    deceasedDateTime varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    gender varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    maritalStatus_text varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    maritalStatus_coding_code varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    maritalStatus_coding_display varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    maritalStatus_coding_system varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    multipleBirthBoolean bit,\n    multipleBirthInteger bigint,\n    resourceType varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    text_div varchar(1000) COLLATE Latin1_General_100_BIN2_UTF8,\n    text_status varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    identifier_system varchar(100) COLLATE Latin1_General_100_BIN2_UTF8,\n    identifier_type_coding_code varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    identifier_type_coding_system varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    identifier_type_text varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    identifier_value varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    name_family varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    name_given varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    name_prefix varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    name_suffix varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    name_use varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    telecom_system varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    telecom_use varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    telecom_value varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    communication_language_text varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    communication_language_coding_code varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    communication_language_coding_display varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    communication_language_coding_system varchar(64) COLLATE Latin1_General_100_BIN2_UTF8\n    )\n    patientIdentifier;\n\nDROP VIEW IF EXISTS bronze.observationHistoryView;\n\nCREATE VIEW bronze.observationHistoryView\nAS SELECT *, obs.filepath(1) as year\nFROM\n    OPENROWSET(\n        BULK 'Observation/year=*/*.json',\n        DATA_SOURCE = 'bronzeHistory',\n        FORMAT='csv',\n        fieldterminator ='0x0b',\n        fieldquote = '0x0b'\n    )\n    WITH (\n        doc varchar(max) COLLATE Latin1_General_100_BIN2_UTF8\n        ) as obs;\n\nDROP VIEW IF EXISTS bronze.claimHistoryView;\n\nCREATE VIEW bronze.claimHistoryView\nAS SELECT *, claims.filepath(1) as year\nFROM\n    OPENROWSET(\n        BULK 'Claim/year=*/*.json',\n        DATA_SOURCE = 'bronzeHistory',\n        FORMAT='csv',\n        fieldterminator ='0x0b',\n        fieldquote = '0x0b'\n    )\n    WITH (\n        doc varchar(max) COLLATE Latin1_General_100_BIN2_UTF8\n        ) as claims;\n\nDROP VIEW IF EXISTS bronze.claimIncrementalView;\n\nCREATE VIEW bronze.claimIncrementalView\nAS SELECT *, claims.filepath(1) as year, claims.filepath(2) as month, claims.filepath(3) as day\nFROM\n    OPENROWSET(\n        BULK 'Claim/year=*/month=*/day=*/*.json',\n        DATA_SOURCE = 'bronzeIncremental',\n        FORMAT='csv',\n        fieldterminator ='0x0b',\n        fieldquote = '0x0b'\n    )\n    WITH (\n        doc varchar(max) COLLATE Latin1_General_100_BIN2_UTF8\n        ) as claims;\n\nDROP VIEW IF EXISTS bronze.observationIncrementalView;\n\nCREATE VIEW bronze.observationIncrementalView\nAS SELECT *, obs.filepath(1) as year, obs.filepath(2) as month, obs.filepath(3) as day\nFROM\n    OPENROWSET(\n        BULK 'Observation/year=*/month=*/day=*/*.json',\n        DATA_SOURCE = 'bronzeIncremental',\n        FORMAT='csv',\n        fieldterminator ='0x0b',\n        fieldquote = '0x0b'\n    )\n\n    WITH (\n        doc varchar(max) COLLATE Latin1_General_100_BIN2_UTF8\n        ) as obs;\n\ndrop view if exists bronze.patientReferenceView;\n\nCREATE VIEW bronze.patientReferenceView\nAS SELECT *\nFROM\n    OPENROWSET(\n        BULK '30tb/**',\n        DATA_SOURCE = 'bronzeReference',\n        FORMAT='csv',\n        fieldterminator ='0x0b',\n        fieldquote = '0x0b'\n    )\n\n    WITH (\n        doc varchar(max) COLLATE Latin1_General_100_BIN2_UTF8\n        ) as patients;\n",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "ldw",
+						"poolName": "Built-in"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/sql-create-qpi')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "--------------------------------------------------------------------------------\n--\tSynapse serverless SQL pool - Query Performance Insights\n--\tAuthor: Jovan Popovic\n--------------------------------------------------------------------------------\n\nSET QUOTED_IDENTIFIER OFF; -- Because I use \"\" as a string literal\nGO\n\nIF SCHEMA_ID('qpi') IS NULL\n\tEXEC ('CREATE SCHEMA qpi');\nGO\n\nCREATE OR ALTER VIEW qpi.queries\nAS\nSELECT\n\t\ttext =   IIF(LEFT(text,1) = '(', TRIM(')' FROM SUBSTRING( text, (PATINDEX( '%)[^),]%', text))+1, LEN(text))), text) ,\n\t\tparams =  IIF(LEFT(text,1) = '(', SUBSTRING( text, 2, (PATINDEX( '%)[^),]%', text+')'))-2), '') ,\n\t\texecution_type_desc = status COLLATE Latin1_General_CS_AS,\n\t\tfirst_execution_time = start_time, last_execution_time = NULL, count_executions = NULL,\n\t\telapsed_time_s = total_elapsed_time /1000.0,\n\t\tcpu_time_s = cpu_time /1000.0,\n\t\tlogical_io_reads = logical_reads,\n\t\tlogical_io_writes = writes,\n\t\tphysical_io_reads = reads,\n\t\tnum_physical_io_reads = NULL,\n\t\tclr_time = NULL,\n\t\tdop,\n\t\trow_count,\n\t\tmemory_mb = granted_query_memory *8 /1000,\n\t\tlog_bytes = NULL,\n\t\ttempdb_space = NULL,\n\t\tquery_text_id = NULL, query_id = NULL, plan_id = NULL,\n\t\tdatabase_id, connection_id, session_id, request_id, command,\n\t\tinterval_mi = null,\n\t\tstart_time,\n\t\tend_time = null,\n\t\tsql_handle\nFROM    sys.dm_exec_requests\n\t\tCROSS APPLY sys.dm_exec_sql_text(sql_handle)\nWHERE session_id <> @@SPID\n\nGO\n\nCREATE OR ALTER VIEW qpi.query_history\nAS\nSELECT  query_text_id = query_hash,\n        request_id = distributed_statement_id,\n        elapsed_time_s = total_elapsed_time_ms /1000.,\n        query_text = CASE query_text\n         WHEN '*** Internal delta query ***' THEN 'Scanning Delta transaction log...'\n         WHEN '*** Global stats query ***' THEN 'Collecting file statistics...'\n         WHEN '*** External table stats query ***' THEN 'Collecting file statistics...'\n         ELSE query_text END,\n        data_processed_mb = data_processed_mb,\n        start_time, end_time,\n        transaction_id,\n        status,\n        error, error_code\nFROM sys.dm_exec_requests_history\nGO\n\nCREATE OR ALTER\nFUNCTION qpi.cmp_queries (@request_id1 varchar(40), @request_id2 varchar(40))\nreturns table\nreturn (\n\tselect property = a.[key], a.value query_1, b.value query_2\n\tfrom\n\t(select [key], value\n\tfrom openjson(\n\t(select *\n\t\tfrom qpi.query_history\n\t\twhere request_id = @request_id1\n\t\tfor json path, without_array_wrapper)\n\t)) as a ([key], value)\n\tjoin\n\t(select [key], value\n\tfrom openjson(\n\t(select *\n\t\tfrom qpi.query_history\n\t\twhere request_id = @request_id2\n\t\tfor json path, without_array_wrapper)\n\t)) as b ([key], value)\n\ton a.[key] = b.[key]\n\twhere a.value <> b.value\n\n);\ngo\nCREATE OR ALTER VIEW qpi.recommendations\nAS\nwith sql_definition as (\n\t\tselect \n\t\tobject_id,\n\t\tformat_type = CASE\n\t\t\t\tWHEN UPPER(m.definition) LIKE '%''PARQUET''%' THEN 'PARQUET'\n\t\t\t\tWHEN UPPER(m.definition) LIKE '%''DELTA''%' THEN 'DELTA'\n\t\t\t\tWHEN UPPER(m.definition) LIKE '%''CSV''%' THEN 'CSV'\n\t\t\t\tWHEN UPPER(m.definition) LIKE '%''COSMOSDB''%' THEN 'COSMOSDB'\n\t\t\t\tWHEN \t\tUPPER(m.definition) NOT LIKE '%''PARQUET''%'\n\t\t\t\t\t\tAND (UPPER(m.definition) NOT LIKE '%''CSV''%' )\n\t\t\t\t\t\tAND (UPPER(m.definition) NOT LIKE '%''DELTA''%' )\n\t\t\t\t\t\tAND (UPPER(m.definition) NOT LIKE '%''COSMOSDB''%' )\n\t\t\t\t\t\tTHEN 'COMPOSITE'\n\t\t\t\tELSE 'MIXED'\n\t\t\tEND\n\t\tfrom sys.sql_modules m\n),\nbulkpath as (\nselect schema_name = schema_name(v.schema_id), v.name, val =TRIM(SUBSTRING( LOWER(m.definition) , PATINDEX('%bulk%', LOWER(m.definition)), 2048)), m.definition\nfrom sys.views v\njoin sys.sql_modules m on v.object_id = m.object_id\nwhere PATINDEX('%bulk%', LOWER(m.definition)) > 0\nand schema_name(v.schema_id) <> 'qpi'\n),\nview_path as (\nselect  name,\n\t\tschema_name,\n\t\tpath = SUBSTRING(val, \n\t\t\t\t\t\tCHARINDEX('''', val, 0)+1,\n\t\t\t\t\t\t(CHARINDEX('''', val, CHARINDEX('''', val, 0)+1) - CHARINDEX('''', val, 0) - 1)) \nfrom bulkpath\nwhere CHARINDEX('''', val, 0) > 0\nand schema_name <> 'qpi'\n),\nrecommendations as (\n\nselect\tname = 'USE VARCHAR UTF-8 TYPE',\n        score = 1.0,\n\t\tschema_name = schema_name(v.schema_id),\n\t\tobject = v.name,\n\t\tcolumn_name = c.name,\n\t\treason =\tCONCAT('The view ', v.name, ' that is created on ', m.format_type,' dataset has ', count(c.column_id), ' columns with ') +\n\t\t\t\t\tIIF( t.name = 'nchar', 'NVARCHAR/NCHAR type.', 'VARCHAR/CHAR type without UTF-8 collation.') +\n\t\t\t\t\t' You might get conversion error.' +\n\t\t\t\t\t' Change the column types to VARCHAR with some UTF8 collation.'\nfrom sys.views as v join sys.columns as c on v.object_id = c.object_id\njoin sql_definition m on v.object_id = m.object_id\njoin sys.types t on c.user_type_id = t.user_type_id\nwhere (\tm.format_type IN ('PARQUET', 'DELTA', 'COSMOSDB', 'MIXED') )\nAND\t( (t.name iN ('nchar', 'nvarchar')) OR (t.name iN ('nchar', 'nvarchar') AND c.collation_name NOT LIKE '%UTF8') )\ngroup by v.schema_id, v.name, t.name, m.format_type, c.name\nunion all\n-- Tables on UTF-8 files with NVARCHAR/NCHAR columns or CHAR/VARCHAR without UTF8 collation:\nselect\tname = 'USE VARCHAR TYPE',\n        score = IIF( t.name LIKE 'n%', 0.3, 1.0),\n\t\tschema_name = schema_name(e.schema_id),\n\t\tobject = e.name,\n\t\tcolumn_name = IIF(count(c.column_id)=1, max(c.name), CONCAT(count(c.column_id), ' columns')),\n\t\treason =\tCONCAT('The table \"', schema_name(e.schema_id), '.', e.name, '\" that is created on ', f.format_type, ' files ') +\n\t\t\t\t\tCONCAT(IIF( f.encoding = 'UTF8', ' with UTF-8 encoding ', ''), ' has ',\n\t\t\t\t\tIIF(count(c.column_id)=1, '\"' + max(c.name) + '\" column', CONCAT(count(c.column_id), ' columns') ), ' with ') +\n\t\t\t\t\tIIF( t.name LIKE 'n%', 'NVARCHAR/NCHAR', 'VARCHAR/CHAR without UTF-8 collation.') +\n\t\t\t\t\t' type. Change the column types to VARCHAR with some UTF8 collation.'\nfrom sys.external_tables as e join sys.columns as c on e.object_id = c.object_id\njoin sys.external_file_formats f on e.file_format_id = f.file_format_id\njoin sys.types t on c.user_type_id = t.user_type_id\nwhere ( (f.format_type IN ('PARQUET', 'DELTA')) OR f.encoding = 'UTF8' )\nAND\t( (t.name iN ('nchar', 'nvarchar')) OR (t.name iN ('nchar', 'nvarchar') AND c.collation_name NOT LIKE '%UTF8'))\ngroup by e.schema_id, f.format_type, e.name, f.encoding , t.name, c.name\nunion all\n-- Tables on UTF-16 files with VARCHAR/CHAR columns:\nselect\tname = 'USE NVARCHAR TYPE',\n        score = 1.0,\n\t\t\n\t\tschema_name = schema_name(e.schema_id),\n\t\tobject = e.name,\n\t\tcolumn_name = IIF(count(c.column_id)=1, max(c.name), CONCAT(count(c.column_id), ' columns')),\n\t\treason =\tCONCAT('The table \"',  schema_name(e.schema_id), '.', e.name, '\" created on CSV files with UTF16 encoding has ', \n\t\t\t\t\t\tIIF(count(c.column_id)=1, '\"' + max(c.name) + '\" column', CONCAT(count(c.column_id), ' columns') ), ' with ') +\n\t\t\t\t\t'VARCHAR/CHAR type. Change the column type to NVARCHAR.'\nfrom sys.external_tables as e join sys.columns as c on e.object_id = c.object_id\njoin sys.external_file_formats f on e.file_format_id = f.file_format_id\njoin sys.types t on c.user_type_id = t.user_type_id\nwhere (f.encoding = 'UTF16' )\nAND\t(t.name iN ('nchar', 'nvarchar'))\ngroup by e.schema_id, f.format_type, e.name, f.encoding , t.name\nunion all\nselect\tname = 'OPTIMIZE STRING FILTER',\n        score = case\n\t\t\t\t\twhen string_agg(c.name,',') like '%id%' then 0.9\n\t\t\t\t\twhen string_agg(c.name,',') like '%code%' then 0.9\n\t\t\t\t\twhen count(c.column_id) > 1 then 0.81\n\t\t\t\t\telse 0.71\n\t\t\t\t\tend,\n\t\t\n\t\tschema_name = schema_name(v.schema_id),\n\t\tobject = v.name,\n\t\tcolumn_name = IIF(count(c.column_id)=1, max(c.name), CONCAT(count(c.column_id), ' columns')),\n\t\treason =\tCONCAT('The view \"',  schema_name(v.schema_id), '.', v.name, '\" that is created on ', m.format_type, ' dataset has ',\n\t\t\t\t\t\t\tIIF(count(c.column_id)=1, '\"' + max(c.name) + '\" column', CONCAT(count(c.column_id), ' columns') ), ' with ') +\n\t\t\t\t\tIIF( t.name = 'nchar', 'NVARCHAR/NCHAR type.', 'VARCHAR/CHAR type without BIN2 UTF8 collation.') +\n\t\t\t\t\t' Change the column types to VARCHAR with the Latin1_General_100_BIN2_UTF8 collation.'\nfrom sys.views as v join sys.columns as c on v.object_id = c.object_id\njoin sql_definition m on v.object_id = m.object_id\njoin sys.types t on c.user_type_id = t.user_type_id\nwhere (\tm.format_type IN ('PARQUET', 'DELTA', 'COSMOSDB', 'MIXED') )\nAND\t( t.name IN ('char', 'varchar') AND c.collation_name <> 'Latin1_General_100_BIN2_UTF8' )\ngroup by v.schema_id, v.name, t.name, m.format_type\n\nunion all\n\n-- Tables on Parquet/Delta Lake files with the columns without BIN2 UTF-8 collation:\nselect\tname = 'OPTIMIZE STRING FILTER',\n\t\tscore = 0.6,\n        schema_name = schema_name(e.schema_id),\n\t\tobject = e.name,\n\t\tcolumn_name = c.name,\n\t\treason = CONCAT('The string column \"', c.name, '\" in table \"', schema_name(t.schema_id), '.', t.name, '\" doesn''t have \"Latin1_General_100_BIN2_UTF8\". String filter on this column are suboptimal')\nfrom sys.external_tables as e join sys.columns as c on e.object_id = c.object_id\njoin sys.external_file_formats f on e.file_format_id = f.file_format_id\njoin sys.types t on c.user_type_id = t.user_type_id\nwhere ( (f.format_type IN ('PARQUET', 'DELTA'))) AND t.name IN ('char', 'varchar') AND c.collation_name <> 'Latin1_General_100_BIN2_UTF8'\n\nunion all\n-- Oversized string columns:\nselect\tname = 'OPTIMIZE COLUMN TYPE',\n        score = ROUND(0.3 + (IIF(c.max_length=-1, 0.7*12000., c.max_length)/12000.),1),\n\t\tschema_name = schema_name(o.schema_id),\n\t\tobject = o.name,\n\t\tcolumn_name = c.name,\n\t\treason = CONCAT('The string column \"', c.name, '\" has a max size ', \n\t\t\t\tIIF(c.max_length=-1, ' 2 GB', CAST( c.max_length AS VARCHAR(10)) + ' bytes'), '. Check could you use a column with a smaller size.',\n\t\t\t\tIIF(o.type = 'U', ' Table ', ' View '), '\"', schema_name(o.schema_id), '.', o.name, '\"')\nfrom sys.objects as o join sys.columns as c on o.object_id = c.object_id\njoin sys.types t on c.user_type_id = t.user_type_id\nwhere t.name LIKE '%char' AND (c.max_length > 256 OR c.max_length = -1)\nand o.type in ('U', 'V')\nand lower(c.name) not like '%desc%'\nand lower(c.name) not like '%comment%'\nand lower(c.name) not like '%note%'\nand lower(c.name) not like '%exception%'\nand lower(c.name) not like '%reason%'\nand lower(c.name) not like '%explanation%'\nunion all\n\n-- Oversized key columns:\nselect\tname = 'OPTIMIZE KEY COLUMN TYPE',\n        score = 0.4 + ROUND((1-EXP(-IIF(c.max_length=-1, 8000., c.max_length)/8000.)),1),\n\t\tschema_name = schema_name(o.schema_id),\n\t\tobject = o.name,\n\t\tcolumn_name = c.name,\n\t\treason = CONCAT('Are you using the column \"', c.name, '\" in join/filter predicates? ',\n\t\t\t\t\t\t\t'The column type is ', t.name, '(size:',IIF(c.max_length=-1, ' 2 GB', CAST( c.max_length AS VARCHAR(10)) + ' bytes'),'). ',\n\t\t\t\t\t\t\t'Try to use a column with a smaller type or size.')\nfrom sys.objects as o join sys.columns as c on o.object_id = c.object_id\njoin sys.types t on c.user_type_id = t.user_type_id\nwhere (c.name LIKE '%code' OR  c.name LIKE '%id') AND (c.max_length > 8 OR c.max_length = -1)\nand o.type in ('U', 'V')\n\nunion all\n\n-- The tables that are referencing the same location:\nselect\tname = 'REMOVE DUPLICATE REFERENCES',\n        score = 0.9,\n\t\tschema_name = NULL,\n\t\tobject = NULL,\n\t\tcolumn_name = NULL,\n\t\treason = CONCAT('The tables ', string_agg(concat('\"',schema_name(e.schema_id),'.',e.name,'\"'), ','), ' are referencing the same location')\nfrom sys.external_tables e\ngroup by data_source_id, location\nhaving count(*) > 1\n\nunion all\n\n-- Partitioned external table\nselect\tname = 'REPLACE TABLE WITH PARTITIONED VIEW',\n        score = 1.0,\n\t\tschema_name = schema_name(e.schema_id),\n\t\tobject = e.name,\n\t\tcolumn_name = NULL,\n\t\treason = CONCAT('The table ', e.name, ' is created on a partitioned data set, but cannot leverage partition elimination. Replace it with a partitioned view.')\nfrom sys.external_tables e\nwhere REPLACE(location, '*.', '') like '%*%'\n\nunion all\n\nselect\tname = 'USE BETTER COLUMN TYPE',\n        score = IIF(c.max_length=-1, 1.0, 0.2 + ROUND((1-EXP(-c.max_length/50.))/2,1)),\n\t\tschema_name = schema_name(o.schema_id),\n\t\tobject = o.name,\n\t\tcolumn_name = c.name,\n\t\treason = CONCAT('Do you need to use the type \"', t.name, '(size:',IIF(c.max_length=-1, ' 2 GB', CAST( c.max_length AS VARCHAR(10)) + ' bytes'),') in column \"', c.name, '\" in view: \"', schema_name(o.schema_id), '.', o.name, '\"')\nfrom sys.objects as o join sys.columns as c on o.object_id = c.object_id\njoin sys.types t on c.user_type_id = t.user_type_id\nwhere\n\tt.name IN ('nchar', 'nvarchar', 'char', 'varchar', 'binary', 'varbinary')\nAND\n\t(\tLOWER(c.name) like '%date%' OR LOWER(c.name) like '%time%' \n\tOR\tLOWER(c.name) like '%guid%'\n\tOR\tLOWER(c.name) like '%price%' OR LOWER(c.name) like '%amount%' )\nAND\n\to.type in ('U', 'V')\nand lower(c.name) not like '%desc%'\nand lower(c.name) not like '%comment%'\nand lower(c.name) not like '%note%'\nand lower(c.name) not like '%exception%'\nand lower(c.name) not like '%reason%'\nand lower(c.name) not like '%explanation%'\n\nunion all\n\nselect\tname = 'REMOVE DUPLICATE REFERENCES',\n        score = 0.9,\n\t\tschema_name = NULL,\n\t\tobject = NULL,\n\t\tcolumn_name = NULL,\n\t\treason = CONCAT('Views ', string_agg(concat(schema_name,'.',name), ','), ' are referencing the same path: ', path)\nfrom view_path\ngroup by path\nhaving count(*) > 1\n)\nSELECT * FROM recommendations\nWHERE schema_name <> 'qpi'\nGO\n\nCREATE OR ALTER PROCEDURE qpi.generate_cosmosdb_with_schema ( @connection nvarchar(max), @container nvarchar(1000))\nAS BEGIN\nDECLARE @tsql NVARCHAR(MAX) \nSET @tsql = \"SELECT TOP 10 *\nFROM OPENROWSET( \n         'CosmosDB',\n        '\"+@connection+\"',\n        \"+@container + \") as data\"\n\ncreate table #frs (\n    is_hidden bit not null,\n    column_ordinal int not null,\n    name sysname null,\n    is_nullable bit not null,\n    system_type_id int not null,\n    system_type_name nvarchar(256) null,\n    max_length smallint not null,\n    precision tinyint not null,\n    scale tinyint not null,\n    collation_name sysname null,\n    user_type_id int null,\n    user_type_database sysname null,\n    user_type_schema sysname null,\n    user_type_name sysname null,\n    assembly_qualified_type_name nvarchar(4000),\n    xml_collection_id int null,\n    xml_collection_database sysname null,\n    xml_collection_schema sysname null,\n    xml_collection_name sysname null,\n    is_xml_document bit not null,\n    is_case_sensitive bit not null,\n    is_fixed_length_clr_type bit not null,\n    source_server sysname null,\n    source_database sysname null,\n    source_schema sysname null,\n    source_table sysname null,\n    source_column sysname null,\n    is_identity_column bit null,\n    is_part_of_unique_key bit null,\n    is_updateable bit null,\n    is_computed_column bit null,\n    is_sparse_column_set bit null,\n    ordinal_in_order_by_list smallint null,\n    order_by_list_length smallint null,\n    order_by_is_descending smallint null,\n    tds_type_id int not null,\n    tds_length int not null,\n    tds_collation_id int null,\n    tds_collation_sort_id tinyint null\n);\n\ninsert #frs\nexec sys.sp_describe_first_result_set @tsql;\n\ndeclare @with_clause nvarchar(max);\nset @with_clause = (select 'WITH (' + string_agg(QUOTENAME(name) + ' ' + system_type_name, ', ') + ')' from #frs);\n\nselect\n'Note:', 'This is an autogenerated schema for cosmosDB contianer. Try to optimize it and minimize the types like VARCHAR(8000)!'\nunion all\nselect 'Query:', \"SELECT * FROM OPENROWSET( 'CosmosDB',\n        '\"+@connection+\"',\n        \"+@container + ') ' + @with_clause + ' as data'\nunion ALL\nselect 'WITH clause:', @with_clause;\nEND\nGO\n\nCREATE OR ALTER   PROCEDURE [qpi].[create_diagnostics] @path varchar(1024)\nAS BEGIN\n\n\tDECLARE @tsql VARCHAR(MAX);\n\n\tSET @tsql = CONCAT(\"DROP EXTERNAL DATA SOURCE [Diagnostics];\nCREATE EXTERNAL DATA SOURCE [Diagnostics] WITH ( LOCATION = '\", @path, \"' );\");\n\n\tEXEC(@tsql);\n\n\tSET @tsql = \"CREATE OR ALTER VIEW qpi.diagnostics\nAS SELECT\n    subscriptionId = r.filepath(1),\n    resourceGroup = r.filepath(2),\n    workspace = r.filepath(3),\n    year = CAST(r.filepath(4) AS SMALLINT),\n    month = CAST(r.filepath(5) AS TINYINT),\n    day = CAST(r.filepath(6) AS TINYINT),\n    hour = CAST(r.filepath(7) AS TINYINT),\n    minute = CAST(r.filepath(8) AS TINYINT),\n    details.queryType,\n    durationS = CAST(details.durationMs / 1000. AS NUMERIC(8,1)),\n    dataProcessedMB = CAST(details.dataProcessedBytes /1024./1024 AS NUMERIC(16,1)),\n    details.distributedStatementId,\n    details.queryText,\n\tdetails.startTime,\n    details.endTime,\n    details.resultType,\n\tdetails.queryHash,\n    details.operationName,\n    details.endpoint,\n    details.resourceId,\n    details.error\nFROM\n    OPENROWSET(\n        BULK 'resourceId=/SUBSCRIPTIONS/*/RESOURCEGROUPS/*/PROVIDERS/MICROSOFT.SYNAPSE/WORKSPACES/*/y=*/m=*/d=*/h=*/m=*/*.json',\n        DATA_SOURCE = 'Diagnostics',\n        FORMAT = 'CSV',\n        FIELDQUOTE = '0x0b',\n        FIELDTERMINATOR ='0x0b'\n    )\n    WITH (\n        jsonContent varchar(MAX)\n    ) AS r CROSS APPLY OPENJSON(jsonContent)\n                        WITH (  endpoint varchar(128) '$.LogicalServerName',\n                                resourceGroup varchar(128) '$.ResourceGroup',\n                                startTime datetime2 '$.properties.startTime',\n                                endTime datetime2 '$.properties.endTime',\n                                dataProcessedBytes bigint '$.properties.dataProcessedBytes',\n                                durationMs bigint,\n                                loginName varchar(128) '$.identity.loginName',\n                                distributedStatementId varchar(128) '$.properties.distributedStatementId',\n                                resultType varchar(128) ,\n                                queryText varchar(max) '$.properties.queryText',\n                                queryHash varchar(128) '$.properties.queryHash',\n                                operationName varchar(128),\n\t\t\t\terror varchar(128) '$.properties.error',\n                                queryType varchar(128) '$.properties.command',\n\t\t\t\tresourceId varchar(1024) '$.resourceId'\n                             ) as details\";\n\n\t\tEXEC(@tsql);\nEND\nGO\n\nselect * from qpi.query_history order by start_time desc\n\nselect * from qpi.recommendations where schema_name = 'silver'",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "ldw",
+						"poolName": "Built-in"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/sql-dedicated-sql-config')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "CREATE SCHEMA fhir;\nCREATE SCHEMA staging;\n\nEXECUTE AS User = 'Analyst';\nselect top 100 * from fhir.patientIdentifier;\nREVERT;\n\nIF NOT EXISTS (SELECT * FROM sys.sql_logins WHERE name = 'ELTLogin')\nBEGIN\nCREATE LOGIN [ELTLogin] WITH PASSWORD='AustinTX23#!'\nEND\n;\n\nIF NOT EXISTS (SELECT * FROM sys.sql_logins WHERE name = 'businessLogin')\nBEGIN\nCREATE LOGIN [businessLogin] WITH PASSWORD='NashvilleTN23#!'\nEND\n;\n\nIF NOT EXISTS (SELECT * FROM sys.sql_logins WHERE name = 'analystLogin')\nBEGIN\nCREATE LOGIN [analystLogin] WITH PASSWORD='SanDiegoCA23#!'\nEND\n;\n\nIF NOT EXISTS (SELECT * FROM sys.sql_logins WHERE name = 'adminLogin')\nBEGIN\nCREATE LOGIN [adminLogin] WITH PASSWORD='CharlestonSC23#!'\nEND\n;\n\nIF NOT EXISTS (SELECT * FROM sys.database_principals WHERE name = 'ELTUser')\nBEGIN\nCREATE USER [ELTUser] FOR LOGIN [ELTLogin]\nGRANT CONTROL ON DATABASE::dsqlnonprod TO ELTUser \nEND\n;\n\nIF NOT EXISTS (SELECT * FROM sys.database_principals WHERE name = 'analystUser')\nBEGIN\nCREATE USER [analystUser] FOR LOGIN [analystLogin]\nEND\n;\n\nIF NOT EXISTS (SELECT * FROM sys.database_principals WHERE name = 'businessUser')\nBEGIN\nCREATE USER [businessUser] FOR LOGIN [businessLogin]\nEND\n;\n\nIF NOT EXISTS (SELECT * FROM sys.database_principals WHERE name = 'adminUser')\nBEGIN\nCREATE USER [adminUser] FOR LOGIN [adminLogin]\nGRANT CONTROL ON DATABASE::dsqlnonprod TO adminUser \nEND\n;\n\nCREATE USER [adf-de-nonprod] FROM EXTERNAL PROVIDER;\n\nEXEC sp_addrolemember 'db_exporter', [adf-de-nonprod];\nGRANT ADMINISTER DATABASE BULK OPERATIONS TO [adf-de-nonprod];\nGRANT ALTER ON SCHEMA::fhir TO [adf-de-nonprod];\nGRANT ALTER ON SCHEMA::staging TO [adf-de-nonprod];\n\nGRANT SELECT ON staging.claimMain TO [adf-de-nonprod];\nGRANT INSERT ON staging.claimMain TO [adf-de-nonprod];\nGRANT DELETE ON staging.claimMain TO [adf-de-nonprod];\n\n\nsp_set_firewall_rule @name = N'HomeIP', @start_ip_address = '20.42.2.58', @end_ip_address = '20.42.2.58'\nsp_set_firewall_rule @name = N'HomeIP2', @start_ip_address = '20.42.3.26', @end_ip_address = '20.42.3.26';\nsp_set_firewall_rule @name = N'HomeIP3', @start_ip_address = '20.42.3.43', @end_ip_address = '20.42.3.43';\n\nsp_set_firewall_rule @name = N'HomeIPRange', @start_ip_address = '20.42.3.0', @end_ip_address = '20.42.3.99';\n\nCREATE USER [ericpasztor@microsoft.com] FROM EXTERNAL PROVIDER; \n\nEXEC sp_addrolemember 'largerc', 'adminUser';\nEXEC sp_addrolemember 'largerc', 'ELTUser';\nEXEC sp_addrolemember 'mediumrc', 'analystUser';\nEXEC sp_addrolemember 'mediumrc', 'businessUser';\n\nSELECT group_id, name, importance, min_percentage_resource, cap_percentage_resource, request_min_resource_grant_percent, request_max_resource_grant_percent, query_execution_timeout_sec, query_wait_timeout_sec \n    FROM sys.workload_management_workload_groups;\n\n   SELECT name\nFROM   sys.database_principals\nWHERE  name LIKE '%rc%' AND type_desc = 'DATABASE_ROLE';\n\nSELECT  r.name AS [Resource Class]\n,       m.name AS membername\nFROM    sys.database_role_members rm\nJOIN    sys.database_principals AS r ON rm.role_principal_id = r.principal_id\nJOIN    sys.database_principals AS m ON rm.member_principal_id = m.principal_id\nWHERE   r.name IN ('mediumrc','largerc','xlargerc','staticrc10','staticrc20','staticrc30','staticrc40','staticrc50','staticrc60','staticrc70','staticrc80');\n\nALTER DATABASE dsqlnonprod\nSET AUTO_CREATE_STATISTICS ON;\n\nEXEC sp_addrolemember 'db_exporter', [ericpasztor@microsoft.com];\nEXEC sp_addrolemember 'db_exporter', [ELTUser];\n\nALTER ROLE db_datareader ADD MEMBER Admin; \nALTER ROLE db_datareader ADD MEMBER Analyst; \nALTER ROLE db_datareader ADD MEMBER Business; \nEXEC sp_addrolemember 'db_datareader', 'analystUser';\nEXEC sp_addrolemember 'db_datareader', 'businessUser';\n\nCREATE ROLE admins;\nCREATE ROLE dataAnalyst;\nCREATE ROLE businessAnalyst;\n\nEXEC sp_addrolemember 'admins', 'adminUser';\nEXEC sp_addrolemember 'dataAnalyst', 'analystUser';\nEXEC sp_addrolemember 'businessAnalyst', 'businessUser';\n\nALTER ROLE admins ADD MEMBER adminUser;\nALTER ROLE dataAnalyst ADD MEMBER analystUser;\nALTER ROLE businessAnalyst ADD MEMBER businessUser;\n\nGRANT CREATE TABLE TO [ericpasztor@microsoft.com];\n\n--Make sure your user has ALTER permissions\nGRANT ALTER ON SCHEMA::fhir TO [ericpasztor@microsoft.com];\nGRANT ALTER ON SCHEMA::staging TO [ericpasztor@microsoft.com];\n\nGRANT ALTER ON SCHEMA::fhir TO [ELTUser];\nGRANT ALTER ON SCHEMA::staging TO [ELTUser];\n\n--Make sure your user has ADMINISTER DATABASE BULK OPERATIONS permissions\nGRANT ADMINISTER DATABASE BULK OPERATIONS TO [ericpasztor@microsoft.com];\nGRANT ADMINISTER DATABASE BULK OPERATIONS TO [ELTUser];\n\n--Make sure your user has Select permissions on the target table\nGRANT SELECT ON fhir.observationCategory TO [ericpasztor@microsoft.com];\nGRANT SELECT ON fhir.observationComponent TO [ericpasztor@microsoft.com];\nGRANT SELECT ON fhir.observationCode TO [ericpasztor@microsoft.com];\nGRANT SELECT ON fhir.observationMain TO [ericpasztor@microsoft.com];\nGRANT SELECT ON fhir.patientIdentifier TO [ericpasztor@microsoft.com];\nGRANT SELECT ON fhir.patientAddress TO [ericpasztor@microsoft.com];\nGRANT SELECT ON fhir.claimInsurance TO [ericpasztor@microsoft.com];\nGRANT SELECT ON fhir.claimProcedure TO [ericpasztor@microsoft.com];\nGRANT SELECT ON fhir.claimDiagnosis TO [ericpasztor@microsoft.com];\nGRANT SELECT ON fhir.claimMain TO [ericpasztor@microsoft.com];\n\n--Make sure your user has INSERT permissions on the target table\nGRANT INSERT ON fhir.observationCategory TO [ericpasztor@microsoft.com];\nGRANT INSERT ON fhir.observationComponent TO [ericpasztor@microsoft.com];\nGRANT INSERT ON fhir.observationCode TO [ericpasztor@microsoft.com];\nGRANT INSERT ON fhir.observationMain TO [ericpasztor@microsoft.com];\nGRANT INSERT ON fhir.patientIdentifier TO [ericpasztor@microsoft.com];\nGRANT INSERT ON fhir.patientAddress TO [ericpasztor@microsoft.com];\nGRANT INSERT ON fhir.claimInsurance TO [ericpasztor@microsoft.com];\nGRANT INSERT ON fhir.claimProcedure TO [ericpasztor@microsoft.com];\nGRANT INSERT ON fhir.claimDiagnosis TO [ericpasztor@microsoft.com];\nGRANT INSERT ON fhir.claimMain TO [ericpasztor@microsoft.com];\n\n--Make sure your user has DELETE permissions on the target table\nGRANT DELETE ON fhir.observationCategory TO [ericpasztor@microsoft.com];\nGRANT DELETE ON fhir.observationComponent TO [ericpasztor@microsoft.com];\nGRANT DELETE ON fhir.observationCode TO [ericpasztor@microsoft.com];\nGRANT DELETE ON fhir.observationMain TO [ericpasztor@microsoft.com];\nGRANT DELETE ON fhir.patientIdentifier TO [ericpasztor@microsoft.com];\nGRANT DELETE ON fhir.patientAddress TO [ericpasztor@microsoft.com];\nGRANT DELETE ON fhir.claimInsurance TO [ericpasztor@microsoft.com];\nGRANT DELETE ON fhir.claimProcedure TO [ericpasztor@microsoft.com];\nGRANT DELETE ON fhir.claimDiagnosis TO [ericpasztor@microsoft.com];\nGRANT DELETE ON fhir.claimMain TO [ericpasztor@microsoft.com];\n\n--ELT User\nGRANT SELECT ON fhir.observationCategory TO [ELTUser];\nGRANT SELECT ON fhir.observationComponent TO [ELTUser];\nGRANT SELECT ON fhir.observationCode TO [ELTUser];\nGRANT SELECT ON fhir.observationMain TO [ELTUser];\nGRANT SELECT ON fhir.patientIdentifier TO [ELTUser];\nGRANT SELECT ON fhir.patientAddress TO [ELTUser];\nGRANT SELECT ON fhir.claimInsurance TO [ELTUser];\nGRANT SELECT ON fhir.claimProcedure TO [ELTUser];\nGRANT SELECT ON fhir.claimDiagnosis TO [ELTUser];\nGRANT SELECT ON fhir.claimMain TO [ELTUser];\nGRANT INSERT ON fhir.observationCategory TO [ELTUser];\nGRANT INSERT ON fhir.observationComponent TO [ELTUser];\nGRANT INSERT ON fhir.observationCode TO [ELTUser];\nGRANT INSERT ON fhir.observationMain TO [ELTUser];\nGRANT INSERT ON fhir.patientIdentifier TO [ELTUser];\nGRANT INSERT ON fhir.patientAddress TO [ELTUser];\nGRANT INSERT ON fhir.claimInsurance TO [ELTUser];\nGRANT INSERT ON fhir.claimProcedure TO [ELTUser];\nGRANT INSERT ON fhir.claimDiagnosis TO [ELTUser];\nGRANT INSERT ON fhir.claimMain TO [ELTUser];\nGRANT DELETE ON fhir.observationCategory TO [ELTUser];\nGRANT DELETE ON fhir.observationComponent TO [ELTUser];\nGRANT DELETE ON fhir.observationCode TO [ELTUser];\nGRANT DELETE ON fhir.observationMain TO [ELTUser];\nGRANT DELETE ON fhir.patientIdentifier TO [ELTUser];\nGRANT DELETE ON fhir.patientAddress TO [ELTUser];\nGRANT DELETE ON fhir.claimInsurance TO [ELTUser];\nGRANT DELETE ON fhir.claimProcedure TO [ELTUser];\nGRANT DELETE ON fhir.claimDiagnosis TO [ELTUser];\nGRANT DELETE ON fhir.claimMain TO [ELTUser];\n\n--Staging\n\nGRANT SELECT ON staging.observationMain TO [ELTUser];\nGRANT SELECT ON staging.claimMain TO [ELTUser];\nGRANT INSERT ON staging.observationMain TO [ELTUser];\nGRANT INSERT ON staging.claimMain TO [ELTUser];\nGRANT DELETE ON staging.observationMain TO [ELTUser];\nGRANT DELETE ON staging.claimMain TO [ELTUser];\n\n\nGRANT SELECT ON staging.observationMain TO [ericpasztor@microsoft.com];\nGRANT SELECT ON staging.claimMain TO [ericpasztor@microsoft.com];\nGRANT INSERT ON staging.observationMain TO [ericpasztor@microsoft.com];\nGRANT INSERT ON staging.claimMain TO [ericpasztor@microsoft.com];\nGRANT DELETE ON staging.observationMain TO [ericpasztor@microsoft.com];\nGRANT DELETE ON staging.claimMain TO [ericpasztor@microsoft.com];\n\nGRANT INSERT ON fhir.observationMain_new TO [ELTUser];\nGRANT UPDATE ON fhir.observationMain_new TO [ELTUser];\nGRANT DELETE ON fhir.observationMain_new TO [ELTUser];\n\nGRANT INSERT ON fhir.observationMain_new TO [ericpasztor@microsoft.com];\nGRANT UPDATE ON fhir.observationMain_new TO [ericpasztor@microsoft.com];\nGRANT DELETE ON fhir.observationMain_new TO [ericpasztor@microsoft.com];\n\n\nCREATE VIEW fhir.patientIdentifierView \nAS \n--EXECUTE AS User = 'analystUser'\nSELECT\npatient_id,\n    birthDate,\n    deceasedDateTime,\n    gender,\n    maritalStatus_text,\n    maritalStatus_coding_code,\n    maritalStatus_coding_display,\n    maritalStatus_coding_system,\n    multipleBirthBoolean,\n    multipleBirthInteger,\n    resourceType,\n    text_div,\n    text_status,\n    identifier_system,\n    identifier_type_coding_code,\n    identifier_type_coding_system,\n    case \n            when IS_MEMBER('businessAnalyst') = 1 then null \n            else identifier_type_text \n      end as identifier_type_text,\n    case \n            when IS_MEMBER('dataAnalyst') = 1 and identifier_type_text in ('Driver''s License', 'Medical Record Number', 'Passport Number') then 'xxxx'\n            when IS_MEMBER('dataAnalyst') = 1 and identifier_type_text = 'Social Security Number' then concat(substring(identifier_value, 1, 3), '-xx-xxxx') \n            when IS_MEMBER('businessAnalyst') = 1 then null\n            else identifier_value \n      end as identifier_value ,\n    name_family,\n    name_given,\n    name_prefix,\n    name_suffix,\n    name_use,\n    telecom_system,\n    telecom_use,\n    telecom_value,\n    communication_language_text,\n    communication_language_coding_code,\n    communication_language_coding_display,\n    communication_language_coding_system\nFROM  \nfhir.patientIdentifier;",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "master",
+						"poolName": "dsqlnonprod"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/sql-delete-expired-fact-data')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "CREATE PROCEDURE fhir.deleteExpiredFactData AS\n\nBEGIN\n\nDECLARE @today date;\nDECLARE @year varchar(4);\nDECLARE @month varchar(2);\nDECLARE @day varchar(2);\nDECLARE @purgeDate date;\n\n--SET @today = DATEADD(Year,-5,GETDATE());\nSET @today = DATEADD(year, -5, cast('20211231' as date))\nSET @year = (select cast(datepart(year, @today) as varchar(4)));\nSET @month = (RIGHT('00' + CONVERT(NVARCHAR(2), DATEPART(MONTH, @today)), 2));\nSET @day = (RIGHT('00' + CONVERT(NVARCHAR(2), DATEPART(DAY, @today)), 2));\n\nSET @purgeDate = cast(@year + @month + @day as date);\n\nDELETE from fhir.claimMain where cast(cast(year as varchar(4)) + month + day as date) <= @purgeDate;\nDELETE from fhir.observationMain where cast(cast(year as varchar(4)) + month + day as date) <= @purgeDate;\n\nEND;\n",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "dsqlnonprod",
+						"poolName": "dsqlnonprod"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/sql-dynamic-data-masking')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "CREATE USER Admin WITHOUT LOGIN;\nCREATE USER Analyst WITHOUT LOGIN;\nCREATE USER Business WITHOUT LOGIN; \n\nALTER ROLE db_datareader ADD MEMBER Admin; \nALTER ROLE db_datareader ADD MEMBER Analyst; \nALTER ROLE db_datareader ADD MEMBER Business; \n\nGRANT UNMASK ON SCHEMA::fhir TO Admin; \nGRANT SELECT ON SCHEMA::fhir TO Analyst; \nGRANT SELECT ON SCHEMA::fhir TO Business;\nGRANT SELECT ON SCHEMA::silver TO analystBoston; \nGRANT SELECT ON SCHEMA::silver TO analystCambridge;\n\nGRANT SELECT ON fhir.patientIdentifier (\n    patient_id,\n    birthDate,\n    deceasedDateTime,\n    gender,\n    maritalStatus_text,\n    maritalStatus_coding_code,\n    maritalStatus_coding_display,\n    maritalStatus_coding_system,\n    multipleBirthBoolean,\n    multipleBirthInteger,\n    resourceType,\n    text_div,\n    text_status,\n    identifier_system,\n    identifier_type_coding_code,\n    identifier_type_coding_display,\n    identifier_type_coding_system,\n --   identifier_type_text,\n --   identifier_type_value,\n    name_family,\n    name_given,\n    name_prefix,\n    name_suffix,\n    name_use,\n    telecom_system,\n    telecom_use,\n    telecom_value,\n    communication_language_text,\n    communication_language_coding_code,\n    communication_language_coding_display,\n    communication_language_coding_system\n) To businessUser;\n\nREVOKE SELECT on fhir.patientIdentifier TO businessAnalyst;\n-- impersonate for testing:\nEXECUTE AS User = 'businessUser'\nselect top 100 * from fhir.patientIdentifier\nREVERT;\n\nALTER TABLE fhir.patientIdentifier\nALTER COLUMN identifier_value ADD MASKED WITH (FUNCTION = 'default()'); --DLs, MRNs, Passports\nALTER COLUMN identifier_value ADD MASKED WITH (FUNCTION = 'partial(3, \"-xx-xxxx\", 0)'); --SSNs\n\nALTER TABLE fhir.patientIdentifier   \nALTER COLUMN identifier_value DROP MASKED;  \n\n--Serverless\n\nCREATE ROLE analystBoston;\nCREATE ROLE analystCambridge;\n\nCREATE LOGIN bostonLogin WITH PASSWORD = 'boston1294!#5';\nCREATE LOGIN cambridgeLogin WITH PASSWORD = 'cambridge1263!#2';\n\nCREATE USER bostonAnalyst FROM LOGIN bostonLogin;\nCREATE USER cambridgeAnalyst FROM LOGIN cambridgeLogin;\n\nALTER ROLE analystBoston ADD MEMBER bostonAnalyst;\nALTER ROLE analystCambridge ADD MEMBER cambridgeAnalyst;\n\nALTER VIEW silver.patientAddressAnalystView \nAS \nSELECT *\nFROM  \n    OPENROWSET(\n        BULK 'silver/30tb/Patient_address',\n        DATA_SOURCE = 'sqlOnDemandMI',\n        FORMAT='DELTA'\n    ) \nWITH ( \n    patient_id varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    address_city varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    address_country varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    address_line varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    address_postalCode varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    address_state varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    address_extension_extension_url varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    address_extension_extension_valueDecimal float,\n    address_extension_url varchar(100) COLLATE Latin1_General_100_BIN2_UTF8\n    )\n    patientAddress\n    WHERE\n( IS_MEMBER('analystCambridge') = 1 AND address_city = 'Cambridge')\nOR\n( IS_MEMBER('analystBoston') = 1 AND address_city = 'Boston')\nREVERT\n\nEXECUTE AS User = 'bostonAnalyst'\nselect top 100 * from silver.patientAddressAnalystView;\nREVERT;\n\nEXECUTE AS User = 'cambridgeAnalyst'\nselect top 100 * from silver.patientAddressAnalystView;\nREVERT;\n\n\nCREATE VIEW silver.patientIdentifierAnalystView \nAS \nEXECUTE AS User = 'analystUser'\nSELECT *\nFROM  \n    OPENROWSET(\n        BULK 'Patient_identifier',\n        DATA_SOURCE = 'silver',\n        FORMAT='DELTA'\n    ) \nWITH ( \n    patient_id varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    birthDate varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    deceasedDateTime varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    gender varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    maritalStatus_text varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    maritalStatus_coding_code varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    maritalStatus_coding_display varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    maritalStatus_coding_system varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    multipleBirthBoolean bit,\n    multipleBirthInteger bigint,\n    resourceType varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    text_div varchar(1000) COLLATE Latin1_General_100_BIN2_UTF8,\n    text_status varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    identifier_system varchar(100) COLLATE Latin1_General_100_BIN2_UTF8,\n    identifier_type_coding_code varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    identifier_type_coding_system varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    identifier_type_text varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    identifier_value varchar(64) COLLATE Latin1_General_100_BIN2_UTF8 MASKED WITH (FUNCTION = 'default()'),\n    name_family varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    name_given varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    name_prefix varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    name_suffix varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    name_use varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    telecom_system varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    telecom_use varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    telecom_value varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    communication_language_text varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    communication_language_coding_code varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    communication_language_coding_display varchar(64) COLLATE Latin1_General_100_BIN2_UTF8,\n    communication_language_coding_system varchar(64) COLLATE Latin1_General_100_BIN2_UTF8\n    ) p\n    WHERE\n( IS_MEMBER('dataAnalyst') = 1 AND identifier_type_text in ('Driver''s License', 'Medical Record Number', 'Passport Number'))\n\n\n\n\n",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "silver",
+						"poolName": "Built-in"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/sql-pool-exploration')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "EXEC sys.sp_set_session_context @key = 'wlm_context', @value = 'adhoc_query';\n\nEXECUTE AS User = 'analystUser'\nSELECT\npatient.gender AS Patient_Gender,\npatient.maritalStatus_text AS Patient_Marital_Status,\nSUM(claim.total_value) AS Sum_Of_Claim_Total_Value,\nCOUNT_BIG(claim.total_value) AS Count_of_Claims\n\nFROM fhir.patientIdentifier AS patient\nINNER JOIN fhir.patientSeverePainMV observation\nON patient.patient_id = observation.patient_id_reference\n\nINNER JOIN fhir.claimMain AS claim\n ON patient.patient_id = claim.patient_id_reference\nWHERE\nclaim.year = 2020\nGROUP BY\npatient.gender,\npatient.maritalStatus_text\nORDER BY\npatient.gender,\npatient.maritalStatus_text \nOPTION (LABEL = 'data_analytics')\nREVERT\n\ndrop view fhir.patientSeverePainMV ;\n\nCREATE MATERIALIZED VIEW fhir.patientSeverePainMV  \nWITH (distribution = hash(patient_id_reference), FOR_APPEND)  \nAS\nSELECT\npatient_id_reference\nFROM fhir.observationMain main\nINNER JOIN fhir.observationCode code\nON main.observation_id = code.observation_id\nWHERE\ncode.code_text = 'Pain severity - 0-10 verbal numeric rating [Score] - Reported'\nAND main.valueQuantity_valueInt between 8 and 10\nGROUP BY patient_id_reference;\n\nselect top 100 * from fhir.observationMain where valueQuantity_value is not null;\n\nselect top 100 * from fhir.patientSeverePainMV;",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "dsqlnonprod",
+						"poolName": "dsqlnonprod"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/sql-silver-exploration')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "--Using Spark Tables\nselect \np.patient_id, count(*) as count_claims\nfrom \nsilver.dbo.claimmain c \nleft join silver.dbo.patientidentifier p \non c.patient_id_reference = p.patient_id\n\nwhere c.year in (2020, 2021) \nand p.gender = 'male' \nand p.birthDate between dateadd(year, -25, GETDATE()) and dateadd(year, -18, GETDATE())\ngroup by p.patient_id;\n\n--Using Delta Partitioned Views\nselect p.patient_id, count(*) as count_claims\nfrom \nsilver.claimMainView c\nleft join silver.patientIdentifierView p \non c.patient_id_reference = p.patient_id\n\nwhere c.year in (2020, 2021)\nand p.gender = 'male'\nand cast(p.birthDate as date) between dateadd(year, -25, GETDATE()) and dateadd(year, -18, GETDATE())\ngroup by p.patient_id;\n\n--Using Delta Partitioned View and External Table\nselect \np.patient_id, count(*) as count_claims\nfrom \nsilver.claimMainView c \nleft join silver.patientIdentifierPersisted p \non c.patient_id_reference = p.patient_id\n\nwhere c.year in (2020, 2021) \nand p.gender = 'male' \nand cast(p.birthDate as date) between dateadd(year, -25, GETDATE()) and dateadd(year, -18, GETDATE())\ngroup by p.patient_id;\n\n--Create External table stats\nCREATE STATISTICS [statPatientIdentifierPatientId] ON silver.patientIdentifier(patient_id);\nCREATE STATISTICS [statPatientIdentifierGender] ON silver.patientIdentifier(gender);\nCREATE STATISTICS [statPatientIdentifierBirthDate] ON silver.patientIdentifier(birthDate);\n\n--Create Spark table stats\nCREATE STATISTICS [statSparkPatientIdentifierPatientId] ON silver.dbo.patientIdentifier(patient_id);\nCREATE STATISTICS [statSparkPatientIdentifierGender] ON silver.dbo.patientIdentifier(gender);\nCREATE STATISTICS [statSparkPatientIdentifierBirthDate] ON silver.dbo.patientIdentifier(birthDate);\nCREATE STATISTICS [statSparkClaimMainPatientIdReference] ON silver.dbo.claimmain(patient_id_reference);\nCREATE STATISTICS [statSparkClaimMainClaimId] ON silver.dbo.claimmain(claim_id);\n\n",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "ldw",
+						"poolName": "Built-in"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
 			},
 			"dependsOn": []
 		},
@@ -136,6 +640,7 @@
 					"executorMemory": "28g",
 					"executorCores": 4,
 					"numExecutors": 2,
+					"runAsWorkspaceSystemIdentity": false,
 					"conf": {
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
@@ -146,10 +651,6 @@
 				"metadata": {
 					"saveOutput": true,
 					"enableDebugMode": false,
-					"kernelspec": {
-						"name": "synapse_pyspark",
-						"display_name": "Synapse PySpark"
-					},
 					"language_info": {
 						"name": "python"
 					},
@@ -599,6 +1100,7 @@
 					"executorMemory": "28g",
 					"executorCores": 4,
 					"numExecutors": 2,
+					"runAsWorkspaceSystemIdentity": false,
 					"conf": {
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
@@ -609,10 +1111,6 @@
 				"metadata": {
 					"saveOutput": true,
 					"enableDebugMode": false,
-					"kernelspec": {
-						"name": "synapse_pyspark",
-						"display_name": "Synapse PySpark"
-					},
 					"language_info": {
 						"name": "python"
 					},
@@ -1140,6 +1638,7 @@
 					"executorMemory": "28g",
 					"executorCores": 4,
 					"numExecutors": 2,
+					"runAsWorkspaceSystemIdentity": false,
 					"conf": {
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
@@ -1150,10 +1649,6 @@
 				"metadata": {
 					"saveOutput": true,
 					"enableDebugMode": false,
-					"kernelspec": {
-						"name": "synapse_pyspark",
-						"display_name": "Synapse PySpark"
-					},
 					"language_info": {
 						"name": "python"
 					},
@@ -1463,6 +1958,7 @@
 					"executorMemory": "28g",
 					"executorCores": 4,
 					"numExecutors": 2,
+					"runAsWorkspaceSystemIdentity": false,
 					"conf": {
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
@@ -1473,10 +1969,6 @@
 				"metadata": {
 					"saveOutput": true,
 					"enableDebugMode": false,
-					"kernelspec": {
-						"name": "synapse_pyspark",
-						"display_name": "Synapse PySpark"
-					},
 					"language_info": {
 						"name": "scala"
 					},
@@ -1487,12 +1979,14 @@
 						"endpoint": "https://wkspc-cdw-nonprod.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/sparknonprod",
 						"auth": {
 							"type": "AAD",
-							"authResource": "https://dev.azuresynapse.net"
+							"authResource": "https://dev.azuresynapse.net",
+							"authHeader": null
 						},
 						"sparkVersion": "3.2",
 						"nodeCount": 10,
 						"cores": 4,
-						"memory": 28
+						"memory": 28,
+						"extraHeader": null
 					},
 					"sessionKeepAliveTimeout": 30
 				},
@@ -1929,10 +2423,6 @@
 				"metadata": {
 					"saveOutput": true,
 					"enableDebugMode": false,
-					"kernelspec": {
-						"name": "synapse_pyspark",
-						"display_name": "Synapse PySpark"
-					},
 					"language_info": {
 						"name": "python"
 					},
@@ -1943,13 +2433,14 @@
 						"endpoint": "https://wkspc-cdw-nonprod.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/sparknonprod",
 						"auth": {
 							"type": "AAD",
-							"authResource": "https://dev.azuresynapse.net"
+							"authResource": "https://dev.azuresynapse.net",
+							"authHeader": null
 						},
 						"sparkVersion": "3.2",
 						"nodeCount": 10,
 						"cores": 4,
 						"memory": 28,
-						"automaticScaleJobs": false
+						"extraHeader": null
 					},
 					"sessionKeepAliveTimeout": 30
 				},
@@ -2134,116 +2625,926 @@
 			"dependsOn": []
 		},
 		{
-			"name": "[concat(parameters('workspaceName'), '/sparknonprod')]",
-			"type": "Microsoft.Synapse/workspaces/bigDataPools",
-			"apiVersion": "2019-06-01-preview",
-			"properties": {
-				"autoPause": {
-					"enabled": true,
-					"delayInMinutes": 15
-				},
-				"autoScale": {
-					"enabled": true,
-					"maxNodeCount": 10,
-					"minNodeCount": 3
-				},
-				"nodeCount": 10,
-				"nodeSize": "Small",
-				"nodeSizeFamily": "MemoryOptimized",
-				"sparkVersion": "3.2",
-				"isComputeIsolationEnabled": false,
-				"sessionLevelPackagesEnabled": true,
-				"annotations": []
-			},
-			"dependsOn": [],
-			"location": "eastus"
-		},
-		{
-			"name": "[concat(parameters('workspaceName'), '/sqlpoolnonprod')]",
-			"type": "Microsoft.Synapse/workspaces/sqlPools",
-			"apiVersion": "2019-06-01-preview",
-			"properties": {
-				"collation": "SQL_Latin1_General_CP1_CI_AS",
-				"maxSizeBytes": 263882790666240,
-				"annotations": []
-			},
-			"dependsOn": [],
-			"location": "eastus"
-		},
-		{
-			"name": "[concat(parameters('workspaceName'), '/default')]",
-			"type": "Microsoft.Synapse/workspaces/managedVirtualNetworks",
-			"apiVersion": "2019-06-01-preview",
-			"properties": {},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('workspaceName'), '/default/synapse-ws-custstgacct--wkspc-cdw-nonprod-adlscdwnonprod')]",
-			"type": "Microsoft.Synapse/workspaces/managedVirtualNetworks/managedPrivateEndpoints",
-			"apiVersion": "2019-06-01-preview",
-			"properties": {
-				"privateLinkResourceId": "/subscriptions/b3d87898-3bc9-4864-ba33-06c31dea9d94/resourceGroups/rg-cdw-nonprod/providers/Microsoft.Storage/storageAccounts/adlscdwnonprod",
-				"groupId": "dfs",
-				"fqdns": [
-					"adlscdwnonprod.dfs.core.windows.net"
-				]
-			},
-			"dependsOn": [
-				"[concat(variables('workspaceId'), '/managedVirtualNetworks/default')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('workspaceName'), '/default/synapse-ws-kusto-2af2118c98-v2')]",
-			"type": "Microsoft.Synapse/workspaces/managedVirtualNetworks/managedPrivateEndpoints",
-			"apiVersion": "2019-06-01-preview",
-			"properties": {
-				"privateLinkResourceId": "/subscriptions/b3d87898-3bc9-4864-ba33-06c31dea9d94/resourceGroups/rg-cdw-nonprod/providers/Microsoft.Synapse/workspaces/wkspc-cdw-nonprod",
-				"groupId": "Kusto",
-				"fqdns": [
-					"dataexplorernonprod.wkspc-cdw-nonprod.kusto.azuresynapse.net"
-				]
-			},
-			"dependsOn": [
-				"[concat(variables('workspaceId'), '/managedVirtualNetworks/default')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('workspaceName'), '/default/synapse-ws-sql--wkspc-cdw-nonprod')]",
-			"type": "Microsoft.Synapse/workspaces/managedVirtualNetworks/managedPrivateEndpoints",
-			"apiVersion": "2019-06-01-preview",
-			"properties": {
-				"privateLinkResourceId": "/subscriptions/b3d87898-3bc9-4864-ba33-06c31dea9d94/resourceGroups/rg-cdw-nonprod/providers/Microsoft.Synapse/workspaces/wkspc-cdw-nonprod",
-				"groupId": "sql",
-				"fqdns": [
-					"wkspc-cdw-nonprod.2af2118c-98ca-4d3f-b69d-36ee18bacf90.sql.azuresynapse.net"
-				]
-			},
-			"dependsOn": [
-				"[concat(variables('workspaceId'), '/managedVirtualNetworks/default')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('workspaceName'), '/default/synapse-ws-sqlOnDemand--wkspc-cdw-nonprod')]",
-			"type": "Microsoft.Synapse/workspaces/managedVirtualNetworks/managedPrivateEndpoints",
-			"apiVersion": "2019-06-01-preview",
-			"properties": {
-				"privateLinkResourceId": "/subscriptions/b3d87898-3bc9-4864-ba33-06c31dea9d94/resourceGroups/rg-cdw-nonprod/providers/Microsoft.Synapse/workspaces/wkspc-cdw-nonprod",
-				"groupId": "sqlOnDemand",
-				"fqdns": [
-					"wkspc-cdw-nonprod-ondemand.2af2118c-98ca-4d3f-b69d-36ee18bacf90.sql.azuresynapse.net"
-				]
-			},
-			"dependsOn": [
-				"[concat(variables('workspaceId'), '/managedVirtualNetworks/default')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('workspaceName'), '/nb-openai-utilities')]",
+			"name": "[concat(parameters('workspaceName'), '/nb-avro-to-parquet')]",
 			"type": "Microsoft.Synapse/workspaces/notebooks",
 			"apiVersion": "2019-06-01-preview",
 			"properties": {
 				"folder": {
-					"name": "Projects"
+					"name": "FHIR"
+				},
+				"nbformat": 4,
+				"nbformat_minor": 2,
+				"bigDataPool": {
+					"referenceName": "sparknonprodmd",
+					"type": "BigDataPoolReference"
+				},
+				"sessionProperties": {
+					"driverMemory": "56g",
+					"driverCores": 8,
+					"executorMemory": "56g",
+					"executorCores": 8,
+					"numExecutors": 2,
+					"conf": {
+						"spark.dynamicAllocation.enabled": "false",
+						"spark.dynamicAllocation.minExecutors": "2",
+						"spark.dynamicAllocation.maxExecutors": "2",
+						"spark.autotune.trackingId": "92496072-b073-4371-ba54-54fa87af0b85"
+					}
+				},
+				"metadata": {
+					"saveOutput": true,
+					"enableDebugMode": false,
+					"kernelspec": {
+						"name": "synapse_pyspark",
+						"display_name": "Synapse PySpark"
+					},
+					"language_info": {
+						"name": "python"
+					},
+					"a365ComputeOptions": {
+						"id": "/subscriptions/b3d87898-3bc9-4864-ba33-06c31dea9d94/resourceGroups/rg-cdw-nonprod/providers/Microsoft.Synapse/workspaces/wkspc-cdw-nonprod/bigDataPools/sparknonprodmd",
+						"name": "sparknonprodmd",
+						"type": "Spark",
+						"endpoint": "https://wkspc-cdw-nonprod.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/sparknonprodmd",
+						"auth": {
+							"type": "AAD",
+							"authResource": "https://dev.azuresynapse.net"
+						},
+						"sparkVersion": "3.3",
+						"nodeCount": 10,
+						"cores": 8,
+						"memory": 56
+					},
+					"sessionKeepAliveTimeout": 30
+				},
+				"cells": [
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"## Avro to Parquet Conversion Example using PySpark"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"#Specify Data Lake Storage Account, Avro Schema\r\n",
+							"accountName = 'adlsfhirnonprod'\r\n",
+							"basePath = \"abfss://raw@\" + accountName + \".dfs.core.windows.net/\"\r\n",
+							"\r\n",
+							"avroSchema = '''{\r\n",
+							"  \"type\" : \"record\",\r\n",
+							"  \"name\" : \"GenericFromIRecord0\",\r\n",
+							"  \"namespace\" : \"Microsoft.Streaming.Avro\",\r\n",
+							"  \"fields\" : [ {\r\n",
+							"    \"name\" : \"createdat\",\r\n",
+							"    \"type\" : [ \"null\", \"string\" ]\r\n",
+							"  }, {\r\n",
+							"    \"name\" : \"topic\",\r\n",
+							"    \"type\" : [ \"null\", \"string\" ]\r\n",
+							"  }, {\r\n",
+							"    \"name\" : \"sentimentscore\",\r\n",
+							"    \"type\" : [ \"null\", \"long\" ]\r\n",
+							"  }, {\r\n",
+							"    \"name\" : \"eventprocessedutctime\",\r\n",
+							"    \"type\" : [ \"null\", \"string\" ]\r\n",
+							"  }, {\r\n",
+							"    \"name\" : \"partitionid\",\r\n",
+							"    \"type\" : [ \"null\", \"long\" ]\r\n",
+							"  }, {\r\n",
+							"    \"name\" : \"eventenqueuedutctime\",\r\n",
+							"    \"type\" : [ \"null\", \"string\" ]\r\n",
+							"  } ]\r\n",
+							"}\r\n",
+							"'''\r\n",
+							"\r\n",
+							"#Read Avro file, Apply Schema and Write Spark Dataframe as Parquet\r\n",
+							"df = spark.read.format('avro').options(avroSchema=avroSchema).load(basePath + \"twitter.avro\")\r\n",
+							"df.write.mode(\"overwrite\").parquet(basePath + \"twitter.parquet\")\r\n",
+							"\r\n",
+							"#Read Parquet File as a Spark Dataframe and Display\r\n",
+							"df = spark.read.parquet(basePath + \"twitter.parquet\")\r\n",
+							"display(df)"
+						],
+						"outputs": [],
+						"execution_count": 36
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/nb-bronze-to-silver')]",
+			"type": "Microsoft.Synapse/workspaces/notebooks",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"folder": {
+					"name": "FHIR"
+				},
+				"nbformat": 4,
+				"nbformat_minor": 2,
+				"bigDataPool": {
+					"referenceName": "sparknonprodlg",
+					"type": "BigDataPoolReference"
+				},
+				"sessionProperties": {
+					"driverMemory": "112g",
+					"driverCores": 16,
+					"executorMemory": "112g",
+					"executorCores": 16,
+					"numExecutors": 2,
+					"runAsWorkspaceSystemIdentity": false,
+					"conf": {
+						"spark.dynamicAllocation.enabled": "true",
+						"spark.dynamicAllocation.minExecutors": "2",
+						"spark.dynamicAllocation.maxExecutors": "6",
+						"spark.autotune.trackingId": "17f527e6-8fcb-4a45-a66d-5986718452c0"
+					}
+				},
+				"metadata": {
+					"saveOutput": true,
+					"enableDebugMode": false,
+					"kernelspec": {
+						"name": "synapse_pyspark",
+						"display_name": "Synapse PySpark"
+					},
+					"language_info": {
+						"name": "python"
+					},
+					"a365ComputeOptions": {
+						"id": "/subscriptions/b3d87898-3bc9-4864-ba33-06c31dea9d94/resourceGroups/rg-cdw-nonprod/providers/Microsoft.Synapse/workspaces/wkspc-cdw-nonprod/bigDataPools/sparknonprodlg",
+						"name": "sparknonprodlg",
+						"type": "Spark",
+						"endpoint": "https://wkspc-cdw-nonprod.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/sparknonprodlg",
+						"auth": {
+							"type": "AAD",
+							"authResource": "https://dev.azuresynapse.net"
+						},
+						"sparkVersion": "3.3",
+						"nodeCount": 10,
+						"cores": 16,
+						"memory": 112
+					},
+					"sessionKeepAliveTimeout": 30
+				},
+				"cells": [
+					{
+						"cell_type": "code",
+						"source": [
+							"from pyspark.sql.types import StructType\r\n",
+							"from pyspark.sql.functions import col, regexp_replace, explode, explode_outer, date_format, to_date, year, to_timestamp\r\n",
+							"from notebookutils import mssparkutils\r\n",
+							"from pyspark.sql import SparkSession\r\n",
+							"\r\n",
+							"spark.conf.set(\"spark.microsoft.delta.optimizeWrite.enabled\", \"true\")\r\n",
+							"\r\n",
+							"accountName = 'adlsfhirnonprod'\r\n",
+							"containerName = 'bronze'\r\n",
+							"relativePath = '1tb'\r\n",
+							"linkedServiceName = 'lsadlsfhirnonprod'\r\n",
+							"\r\n",
+							"sasToken = mssparkutils.credentials.getConnectionStringOrCreds(linkedServiceName)\r\n",
+							"\r\n",
+							"wasbPath = 'wasbs://%s@%s.blob.core.windows.net/%s' % (containerName, accountName, relativePath)\r\n",
+							"spark.conf.set('fs.azure.sas.%s.%s.blob.core.windows.net' % (containerName, accountName), sasToken)"
+						],
+						"outputs": [],
+						"execution_count": 1
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"## Observation Main (History)"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"bronzePath = \"abfss://bronze@\" + accountName + \".dfs.core.windows.net/historic_data/\" + relativePath + \"/Observation/\"\r\n",
+							"silverPath = \"abfss://silver@\" + accountName + \".dfs.core.windows.net/\" + relativePath\r\n",
+							"\r\n",
+							"observationSchemaFile = bronzePath + \"year=2016/\"\r\n",
+							"observationSchema = spark.read.option(\"mutiline\", \"true\").json(observationSchemaFile).schema\r\n",
+							"\r\n",
+							"df = spark.read.option(\"mutiline\", \"true\").schema(observationSchema).json(bronzePath)\r\n",
+							"df = df.withColumn(\"year\", year(to_date(col(\"issued\"))))\r\n",
+							"df = df.withColumn(\"month\", date_format(to_date(col(\"issued\")), 'MM'))\r\n",
+							"df = df.withColumn(\"day\", date_format(to_date(col(\"issued\")), 'dd'))\r\n",
+							"\r\n",
+							"df = df.withColumn(\"subject\",regexp_replace(\"subject.reference\",\"Patient/\",\"\")).withColumn(\"encounter\",regexp_replace(\"encounter.reference\",\"Encounter/\",\"\"))\r\n",
+							"df = df.withColumnRenamed(\"id\",\"observation_id\")\r\n",
+							"df = df.withColumnRenamed(\"subject\",\"patient_id_reference\")\r\n",
+							"df = df.withColumnRenamed(\"encounter\",\"encounter_id_reference\")\r\n",
+							"\r\n",
+							"df = df.select(\r\n",
+							"    \"observation_id\",\"resourceType\",\"issued\",\"status\",\"patient_id_reference\",\"encounter_id_reference\",\"effectiveDateTime\",\r\n",
+							"    \"valueQuantity.code\",\"valueQuantity.system\",\"valueQuantity.unit\",\"valueQuantity.value\",\"valueString\",\"year\",\"month\",\"day\").toDF(*(\r\n",
+							"    \"observation_id\",\"resourceType\",\"issued\",\"status\",\"patient_id_reference\",\"encounter_id_reference\",\"effectiveDateTime\",\r\n",
+							"    \"valueQuantity_code\",\"valueQuantity_system\",\"valueQuantity_unit\",\"valueQuantity_value\",\"valueString\",\"year\",\"month\",\"day\"\r\n",
+							"    ))\r\n",
+							"\r\n",
+							"df.write.format(\"delta\").mode(\"overwrite\").partitionBy(\"year\", \"month\").save(silverPath + \"/Observation_main/\")"
+						],
+						"outputs": [],
+						"execution_count": 3
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"## **Observation Category, Code, Component, Value (History)**"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"bronzePath = \"abfss://bronze@\" + accountName + \".dfs.core.windows.net/historic_data/\" + relativePath + \"/Observation/\"\r\n",
+							"silverPath = \"abfss://silver@\" + accountName + \".dfs.core.windows.net/\" + relativePath\r\n",
+							"\r\n",
+							"observationSchemaFile = bronzePath + \"year=2016/\"\r\n",
+							"observationSchema = spark.read.option(\"mutiline\", \"true\").json(observationSchemaFile).schema\r\n",
+							"\r\n",
+							"observationDf = spark.read.option(\"mutiline\", \"true\").schema(observationSchema).json(bronzePath)\r\n",
+							"observationDf = observationDf.withColumn(\"year\", year(to_date(col(\"issued\"))))\r\n",
+							"observationDf = observationDf.withColumn(\"month\", date_format(to_date(col(\"issued\")), 'MM'))\r\n",
+							"observationDf = observationDf.withColumn(\"day\", date_format(to_date(col(\"issued\")), 'dd'))\r\n",
+							"\r\n",
+							"observationDf = observationDf.withColumn(\"subject\",regexp_replace(\"subject.reference\",\"Patient/\",\"\")).withColumn(\"encounter\",regexp_replace(\"encounter.reference\",\"Encounter/\",\"\"))\r\n",
+							"observationDf = observationDf.withColumnRenamed(\"id\",\"observation_id\")\r\n",
+							"observationDf = observationDf.withColumnRenamed(\"subject\",\"patient_id_reference\")\r\n",
+							"observationDf = observationDf.withColumnRenamed(\"encounter\",\"encounter_id_reference\")\r\n",
+							"\r\n",
+							"#Category\r\n",
+							"categoryDf = observationDf.select(\r\n",
+							"    \"observation_id\",\r\n",
+							"    explode(observationDf.category),\"year\",\"month\",\"day\").toDF(*(\"observation_id\",\"category\",\"year\",\"month\",\"day\"))\r\n",
+							"\r\n",
+							"categoryDf = categoryDf.select(\r\n",
+							"    \"observation_id\",\r\n",
+							"    explode(categoryDf.category.coding),\"year\",\"month\",\"day\").toDF(*(\"observation_id\",\"category\",\"year\",\"month\",\"day\"))    \r\n",
+							"\r\n",
+							"categoryDf = categoryDf.select(\"observation_id\",\"category.*\",\"year\",\"month\",\"day\").toDF(*(\r\n",
+							"    \"observation_id\",\"category_code\",\"category_display\",\"category_system\",\"year\",\"month\",\"day\"))\r\n",
+							"\r\n",
+							"categoryDf = categoryDf.repartition(\"year\", \"month\")\r\n",
+							"categoryDf.write.format(\"delta\").mode(\"overwrite\").partitionBy(\"year\", \"month\").save(silverPath + \"/Observation_category/\")\r\n",
+							"\r\n",
+							"#Code\r\n",
+							"codeDf = observationDf.select(\r\n",
+							"    \"observation_id\",\"code.text\",explode(observationDf.code.coding),\"year\",\"month\",\"day\").toDF(*(\"observation_id\",\"text\",\"coding\",\"year\",\"month\",\"day\"))\r\n",
+							"\r\n",
+							"codeDf = codeDf.select(\"observation_id\",\"text\",\"coding.*\",\"year\",\"month\",\"day\").toDF(*(\r\n",
+							"    \"Observation_id\",\"code_text\",\"coding_code\",\"coding_display\",\"coding_system\",\"year\",\"month\",\"day\"))\r\n",
+							"\r\n",
+							"codeDf = codeDf.repartition(\"year\", \"month\")\r\n",
+							"codeDf.write.format(\"delta\").mode(\"overwrite\").partitionBy(\"year\", \"month\").save(silverPath + \"/Observation_code/\")\r\n",
+							"\r\n",
+							"#Component\r\n",
+							"componentDf = observationDf.select(\r\n",
+							"    \"Observation_id\",explode(observationDf.component),\"year\",\"month\",\"day\")\r\n",
+							"\r\n",
+							"componentDf = componentDf.select(\"observation_id\",explode_outer(componentDf.col.code.coding),\"col.code.text\",\r\n",
+							"    \"col.valueQuantity.code\",\"col.valueQuantity.system\",\"col.valueQuantity.unit\",\"col.valueQuantity.value\",\"year\",\"month\",\"day\").toDF(*(\"observation_id\",\"component_code\",\"component_text\",\r\n",
+							"    \"component_valueQuantity_code\",\"component_valueQuantity_system\",\"component_valueQuantity_unit\",\"component_valueQuantity_value\",\"year\",\"month\",\"day\"))   \r\n",
+							"\r\n",
+							"componentDf = componentDf.select(\"observation_id\",\"component_code.*\",\"component_text\",\r\n",
+							"    \"component_valueQuantity_code\",\"component_valueQuantity_system\",\"component_valueQuantity_unit\",\"component_valueQuantity_value\",\"year\",\"month\",\"day\").toDF(*(\"observation_id\",\"component_code\",\r\n",
+							"    \"component_display\",\"component_system\",\"component_text\",\r\n",
+							"    \"component_valueQuantity_code\",\"component_valueQuantity_system\",\"component_valueQuantity_unit\",\"component_valueQuantity_value\",\"year\",\"month\",\"day\"))\r\n",
+							"\r\n",
+							"componentDf = componentDf.repartition(\"year\", \"month\")\r\n",
+							"componentDf.write.format(\"delta\").mode(\"overwrite\").partitionBy(\"year\", \"month\").save(silverPath + \"/Observation_component/\")\r\n",
+							"\r\n",
+							"#Observation Value Codeable Concept\r\n",
+							"valueDf = observationDf.select(\r\n",
+							"    \"observation_id\",explode(observationDf.valueCodeableConcept.coding),\"valueCodeableConcept.text\",\"year\",\"month\",\"day\").toDF(*(\"observation_id\",\"coding\",\"valueCodeableConcept_text\",\"year\",\"month\",\"day\"))\r\n",
+							"\r\n",
+							"valueDf = valueDf.select(\"observation_id\",\"coding.*\",\"valueCodeableConcept_text\",\"year\",\"month\",\"day\").toDF(*(\"observation_id\",\r\n",
+							"    \"valueCodeableConcept_code\", \"valueCodeableConcept_display\",\"valueCodeableConcept_system\",\"valueCodeableConcept_text\",\"year\",\"month\",\"day\"))\r\n",
+							"\r\n",
+							"valueDf = valueDf.repartition(\"year\", \"month\")\r\n",
+							"valueDf.write.format(\"delta\").mode(\"overwrite\").partitionBy(\"year\", \"month\").save(silverPath + \"/Observation_valueCodeableConcept/\")\r\n",
+							""
+						],
+						"outputs": [],
+						"execution_count": 14
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"## **Claim Main, Diagnosis, Insurance, Procedure (History)**"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"bronzePath = \"abfss://bronze@\" + accountName + \".dfs.core.windows.net/historic_data/\" + relativePath + \"/Claim/\"\r\n",
+							"silverPath = \"abfss://silver@\" + accountName + \".dfs.core.windows.net/\" + relativePath\r\n",
+							"\r\n",
+							"claimSchemaFile = bronzePath + \"year=2016/\"\r\n",
+							"claimSchema = spark.read.option(\"mutiline\", \"true\").json(claimSchemaFile).schema\r\n",
+							"\r\n",
+							"claimDf = spark.read.option(\"mutiline\", \"true\").schema(claimSchema).json(bronzePath)\r\n",
+							"claimDf = claimDf.withColumn(\"year\", year(to_date(col(\"created\"))))\r\n",
+							"claimDf = claimDf.withColumn(\"month\", date_format(to_date(col(\"created\")), 'MM'))\r\n",
+							"claimDf = claimDf.withColumn(\"day\", date_format(to_date(col(\"created\")), 'dd'))\r\n",
+							"\r\n",
+							"#Main\r\n",
+							"mainDf = claimDf.select(\r\n",
+							"    \"id\",\"resourceType\",\"status\",\"billablePeriod.end\",\"billablePeriod.start\",\"created\",\"patient.display\",\"patient.reference\",\r\n",
+							"    \"prescription.reference\",\"provider.display\",\"provider.reference\",\"total.currency\",\"total.value\",\"use\",\"year\",\"month\",\"day\")\r\n",
+							"\r\n",
+							"mainDf = mainDf.toDF(*( \r\n",
+							"    \"claim_id\",\"resourceType\",\"status\",\"billablePeriod_end\",\"billablePeriod_start\",\"created\",\r\n",
+							"    \"patient_display\",\"patient_id_reference\",\r\n",
+							"    \"prescription_reference\",\"provider_display\",\"provider_org_id_reference\",\"total_currency\",\"total_value\",\"use\",\"year\",\"month\",\"day\"))\r\n",
+							"\r\n",
+							"mainDf = mainDf.withColumn(\"patient_id_reference\",regexp_replace(\"patient_id_reference\",\"Patient/\",\"\")).withColumn(\r\n",
+							"    \"provider_org_id_reference\",regexp_replace(\"provider_org_id_reference\",\"Organization/\",\"\"))\r\n",
+							"\r\n",
+							"mainDf = mainDf.repartition(\"year\", \"month\")\r\n",
+							"mainDf.write.format(\"delta\").mode(\"overwrite\").partitionBy(\"year\", \"month\").save(silverPath + \"/Claim_main/\")\r\n",
+							"\r\n",
+							"#Insurance\r\n",
+							"insuranceDf = claimDf.select(\"id\", explode(claimDf.insurance),\"year\",\"month\",\"day\")\r\n",
+							"\r\n",
+							"insuranceDf = insuranceDf.toDF(*(\"claim_id\",\"insurance\"),\"year\",\"month\",\"day\")\r\n",
+							"\r\n",
+							"insuranceDf = insuranceDf.select(\r\n",
+							"    \"claim_id\",\"insurance.coverage.display\",\"insurance.focal\",\"insurance.sequence\",\"year\",\"month\",\"day\").toDF(*\r\n",
+							"    (\"claim_id\",\"insurance_coverage.display\",\"insurance_focal\",\"insurance_sequence\",\"year\",\"month\",\"day\"))\r\n",
+							"\r\n",
+							"insuranceDf = insuranceDf.repartition(\"year\", \"month\")\r\n",
+							"insuranceDf.write.format(\"delta\").mode(\"overwrite\").partitionBy(\"year\", \"month\").save(silverPath + \"/Claim_insurance/\")\r\n",
+							"\r\n",
+							"#Diagnosis\r\n",
+							"diagnosisDf = claimDf.select(\"id\", explode(claimDf.diagnosis),\"year\",\"month\",\"day\")\r\n",
+							"\r\n",
+							"diagnosisDf = diagnosisDf.toDF(*(\"id\", \"diagnosis\",\"year\",\"month\",\"day\"))\r\n",
+							"\r\n",
+							"diagnosisDf = diagnosisDf.select(\"id\",\"diagnosis.diagnosisReference.reference\",\"diagnosis.sequence\",\"year\",\"month\",\"day\").toDF(*(  \r\n",
+							"    \"claim_id\",\"diagnosis_reference\",\"diagnosis_sequence\",\"year\",\"month\",\"day\"))\r\n",
+							"\r\n",
+							"diagnosisDf = diagnosisDf.withColumn(\"diagnosis_reference\",regexp_replace(\"diagnosis_reference\",\"Condition/\",\"\"))\r\n",
+							"\r\n",
+							"diagnosisDf = diagnosisDf.repartition(\"year\", \"month\")\r\n",
+							"diagnosisDf.write.format(\"delta\").mode(\"overwrite\").partitionBy(\"year\", \"month\").save(silverPath + \"/Claim_diagnosis/\")\r\n",
+							"\r\n",
+							"#Procedure\r\n",
+							"procedureDf = claimDf.select(\"id\",explode(claimDf.procedure),\"year\",\"month\",\"day\")\r\n",
+							"\r\n",
+							"procedureDf = procedureDf.toDF(*(\"id\",\"procedure\"),\"year\",\"month\",\"day\")\r\n",
+							"\r\n",
+							"procedureDf = procedureDf.select(\"id\",\"procedure.procedureReference.reference\",\"procedure.sequence\",\"year\",\"month\",\"day\").toDF(*(\r\n",
+							"    \"claim_id\",\"procedure_reference\",\"procedure_sequence\",\"year\",\"month\",\"day\"))\r\n",
+							"\r\n",
+							"procedureDf = procedureDf.withColumn(\"procedure_reference\",regexp_replace(\"procedure_reference\",\"Procedure/\",\"\"))\r\n",
+							"\r\n",
+							"procedureDf = procedureDf.repartition(\"year\", \"month\")\r\n",
+							"procedureDf.write.format(\"delta\").mode(\"overwrite\").partitionBy(\"year\", \"month\").save(silverPath + \"/Claim_procedure/\")"
+						],
+						"outputs": [],
+						"execution_count": 2
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"## Patient Address, Extension, Identifier (History)****"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"from typing import Final, Dict, Tuple\r\n",
+							"from pyspark.sql import DataFrame as SDF\r\n",
+							"from pyspark.sql.functions import *\r\n",
+							"\r\n",
+							"def rename_dataframe_cols(df: SDF, col_names: Dict[str, str]) -> SDF:\r\n",
+							"\r\n",
+							"    return df.select(*[col(col_name).alias(col_names.get(col_name, col_name)) for col_name in df.columns])\r\n",
+							"\r\n",
+							"def update_column_names(df: SDF, index: int) -> SDF:\r\n",
+							"    df_temp = df\r\n",
+							"    all_cols = df_temp.columns\r\n",
+							"    new_cols = dict((column, f\"{column}*{index}\") for column in all_cols)\r\n",
+							"    df_temp = df_temp.transform(lambda df_x: rename_dataframe_cols(df_x, new_cols))\r\n",
+							"\r\n",
+							"    return df_temp"
+						],
+						"outputs": [],
+						"execution_count": 3
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"def flatten_json(df_arg: SDF, index: int = 1) -> SDF:\r\n",
+							"\r\n",
+							"    df = update_column_names(df_arg, index) if index == 1 else df_arg\r\n",
+							"\r\n",
+							"    fields = df.schema.fields\r\n",
+							"\r\n",
+							"    for field in fields:\r\n",
+							"        data_type = str(field.dataType)\r\n",
+							"        column_name = field.name\r\n",
+							"\r\n",
+							"        first_10_chars = data_type[0:10]\r\n",
+							"\r\n",
+							"        if first_10_chars == 'ArrayType(':\r\n",
+							"\r\n",
+							"            df_temp = df.withColumn(column_name, explode_outer(col(column_name)))\r\n",
+							"            return flatten_json(df_temp, index + 1)\r\n",
+							"\r\n",
+							"        elif first_10_chars == 'StructType':\r\n",
+							"            current_col = column_name\r\n",
+							"\r\n",
+							"            append_str = current_col\r\n",
+							"            data_type_str = str(df.schema[current_col].dataType)\r\n",
+							"\r\n",
+							"            df_temp = df.withColumnRenamed(column_name, column_name + \"#1\") \\\r\n",
+							"                if column_name in data_type_str else df\r\n",
+							"            current_col = current_col + \"#1\" if column_name in data_type_str else current_col\r\n",
+							"\r\n",
+							"            df_before_expanding = df_temp.select(f\"{current_col}.*\")\r\n",
+							"            newly_gen_cols = df_before_expanding.columns\r\n",
+							"\r\n",
+							"            begin_index = append_str.rfind('*')\r\n",
+							"            end_index = len(append_str)\r\n",
+							"            level = append_str[begin_index + 1: end_index]\r\n",
+							"            next_level = int(level) + 1\r\n",
+							"\r\n",
+							"            custom_cols = dict((field, f\"{append_str}-->{field}*{next_level}\") for field in newly_gen_cols)\r\n",
+							"            df_temp2 = df_temp.select(\"*\", f\"{current_col}.*\").drop(current_col)\r\n",
+							"            df_temp3 = df_temp2.transform(lambda df_x: rename_dataframe_cols(df_x, custom_cols))\r\n",
+							"            return flatten_json(df_temp3, index + 1)\r\n",
+							"\r\n",
+							"    return df"
+						],
+						"outputs": [],
+						"execution_count": 4
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"from delta.tables import *\r\n",
+							"\r\n",
+							"spark.conf.set(\"spark.microsoft.delta.optimizeWrite.enabled\", \"true\")\r\n",
+							"\r\n",
+							"silverPath = \"abfss://silver@\" + accountName + \".dfs.core.windows.net/\" + relativePath\r\n",
+							"\r\n",
+							"patientDf = spark.read.json(\"abfss://bronze@\" + accountName + \".dfs.core.windows.net/reference_data/\" + relativePath + \"/*/Patient.ndjson\")\r\n",
+							"patientDfFlat = flatten_json(patientDf)\r\n",
+							"\r\n",
+							"replacedColumns = list(map(lambda x: x.replace(\"-->\", \"_\").replace(\"*1\", \"\").replace(\"*2\", \"\").replace(\"*3\", \"\").replace(\"*4\", \"\"), patientDfFlat.columns))\r\n",
+							"\r\n",
+							"patientDfFlat = patientDfFlat.toDF(*replacedColumns)\r\n",
+							"\r\n",
+							"#Patient Address\r\n",
+							"patientAddressDf = patientDfFlat.select(\"id\",\"address_city\",\"address_country\",\"address_line\",\"address_postalCode\",\"address_state\",\"address_extension_extension_url\",\"address_extension_extension_valueDecimal\",\"address_extension_url\",\r\n",
+							").toDF(*(\"patient_id\",\"address_city\",\"address_country\",\"address_line\",\"address_postalCode\",\"address_state\",\"address_extension_extension_url\",\"address_extension_extension_valueDecimal\",\"address_extension_url\",\r\n",
+							"))\r\n",
+							"\r\n",
+							"patientAddressDf.write.format(\"delta\").mode(\"overwrite\").save(silverPath + \"/Patient_address/\")\r\n",
+							"\r\n",
+							"#Patient Identifier\r\n",
+							"patientIdentifierDf = patientDfFlat.select(\"id\",\r\n",
+							"\"birthDate\",\r\n",
+							"\"deceasedDateTime\",\r\n",
+							"\"gender\",\r\n",
+							"\"maritalStatus_text\",\r\n",
+							"\"maritalStatus_coding_code\",\r\n",
+							"\"maritalStatus_coding_display\",\r\n",
+							"\"maritalStatus_coding_system\",\r\n",
+							"\"multipleBirthBoolean\",\r\n",
+							"\"multipleBirthInteger\",\r\n",
+							"\"resourceType\",\r\n",
+							"\"text_div\",\r\n",
+							"\"text_status\",\r\n",
+							"\"identifier_system\",\r\n",
+							"\"identifier_type_coding_code\",\r\n",
+							"\"identifier_type_coding_display\",\r\n",
+							"\"identifier_type_coding_system\",\r\n",
+							"\"identifier_type_text\",\r\n",
+							"\"identifier_value\",\r\n",
+							"\"name_family\",\r\n",
+							"\"name_given\",\r\n",
+							"\"name_prefix\",\r\n",
+							"\"name_suffix\",\r\n",
+							"\"name_use\",\r\n",
+							"\"telecom_system\",\r\n",
+							"\"telecom_use\",\r\n",
+							"\"telecom_value\",\r\n",
+							"\"communication_language_text\",\r\n",
+							"\"communication_language_coding_code\",\r\n",
+							"\"communication_language_coding_display\",\r\n",
+							"\"communication_language_coding_system\").toDF(*(\r\n",
+							"\"patient_id\",\r\n",
+							"\"birthDate\",\r\n",
+							"\"deceasedDateTime\",\r\n",
+							"\"gender\",\r\n",
+							"\"maritalStatus_text\",\r\n",
+							"\"maritalStatus_coding_code\",\r\n",
+							"\"maritalStatus_coding_display\",\r\n",
+							"\"maritalStatus_coding_system\",\r\n",
+							"\"multipleBirthBoolean\",\r\n",
+							"\"multipleBirthInteger\",\r\n",
+							"\"resourceType\",\r\n",
+							"\"text_div\",\r\n",
+							"\"text_status\",\r\n",
+							"\"identifier_system\",\r\n",
+							"\"identifier_type_coding_code\",\r\n",
+							"\"identifier_type_coding_display\",\r\n",
+							"\"identifier_type_coding_system\",\r\n",
+							"\"identifier_type_text\",\r\n",
+							"\"identifier_value\",\r\n",
+							"\"name_family\",\r\n",
+							"\"name_given\",\r\n",
+							"\"name_prefix\",\r\n",
+							"\"name_suffix\",\r\n",
+							"\"name_use\",\r\n",
+							"\"telecom_system\",\r\n",
+							"\"telecom_use\",\r\n",
+							"\"telecom_value\",\r\n",
+							"\"communication_language_text\",\r\n",
+							"\"communication_language_coding_code\",\r\n",
+							"\"communication_language_coding_display\",\r\n",
+							"\"communication_language_coding_system\"  \r\n",
+							"))\r\n",
+							"\r\n",
+							"patientIdentifierDf.write.format(\"delta\").mode(\"overwrite\").save(silverPath + \"/Patient_identifier/\")\r\n",
+							"\r\n",
+							"#Patient Extension\r\n",
+							"patientExtensionDf = patientDfFlat.select(\"id\",\r\n",
+							"\"extension_url\",\r\n",
+							"\"extension_valueAddress_city\",\r\n",
+							"\"extension_valueAddress_country\",\r\n",
+							"\"extension_valueAddress_state\",\r\n",
+							"\"extension_valueDecimal\",\r\n",
+							"\"extension_valueString\").toDF(*(\r\n",
+							"\"patient_id\",\r\n",
+							"\"extension_url\",\r\n",
+							"\"extension_valueAddress_city\",\r\n",
+							"\"extension_valueAddress_country\",\r\n",
+							"\"extension_valueAddress_state\",\r\n",
+							"\"extension_valueDecimal\",\r\n",
+							"\"extension_valueString\"  \r\n",
+							"))\r\n",
+							"\r\n",
+							"patientExtensionDf.write.format(\"delta\").mode(\"overwrite\").save(silverPath + \"/Patient_extension/\")"
+						],
+						"outputs": [],
+						"execution_count": 5
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"## Incremental Load (Observation Tables) 2021"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"import datetime\r\n",
+							"\r\n",
+							"startDate = datetime.datetime.strptime('2021-01-01', \"%Y-%m-%d\")\r\n",
+							"maxDate = datetime.datetime.strptime('2021-12-31', \"%Y-%m-%d\")\r\n",
+							"\r\n",
+							"bronzePath = \"abfss://bronze@\" + accountName + \".dfs.core.windows.net/incremental_data/\" + relativePath + \"/Observation/year=2021\"\r\n",
+							"silverPath = \"abfss://silver@\" + accountName + \".dfs.core.windows.net/\" + relativePath\r\n",
+							"\r\n",
+							"observationSchemaFile = bronzePath + \"/month=01/day=01\"\r\n",
+							"observationSchema = spark.read.option(\"mutiline\", \"true\").json(observationSchemaFile).schema\r\n",
+							"\r\n",
+							"while startDate <= maxDate:\r\n",
+							"    #endDate = startDate + datetime.timedelta(days=7)\r\n",
+							"    year = 2021\r\n",
+							"    month = startDate.strftime('%m')\r\n",
+							"    day = startDate.strftime('%d')\r\n",
+							"\r\n",
+							"    print(\"Processing: \" + month + \" \" + day)\r\n",
+							"\r\n",
+							"    df = spark.read.option(\"mutiline\", \"true\").schema(observationSchema).json(bronzePath + \"/month=\" + month)\r\n",
+							"    df = df.where(df.day == day)\r\n",
+							"    df = df.withColumn(\"year\", date_format(to_date(col(\"issued\")), 'y'))\r\n",
+							"    df = df.withColumn(\"year\", df.year.cast('int'))\r\n",
+							"    df = df.withColumn(\"month\", date_format(to_date(col(\"issued\")), 'MM'))\r\n",
+							"    df = df.withColumn(\"day\", date_format(to_date(col(\"issued\")), 'dd'))\r\n",
+							"\r\n",
+							"    df = df.withColumn(\"subject\",regexp_replace(\"subject.reference\",\"Patient/\",\"\")).withColumn(\"encounter\",regexp_replace(\"encounter.reference\",\"Encounter/\",\"\"))\r\n",
+							"    df = df.withColumnRenamed(\"id\",\"observation_id\")\r\n",
+							"    df = df.withColumnRenamed(\"subject\",\"patient_id_reference\")\r\n",
+							"    df = df.withColumnRenamed(\"encounter\",\"encounter_id_reference\") \r\n",
+							"\r\n",
+							"    #dfDay = df.where(df.day == day)\r\n",
+							"\r\n",
+							"#Observation Main\r\n",
+							"    dfFlatObsMain = df.select(\"observation_id\",\"resourceType\",\"issued\",\"status\",\"patient_id_reference\",\"encounter_id_reference\",\"effectiveDateTime\",\r\n",
+							"    \"valueQuantity.code\",\"valueQuantity.system\",\"valueQuantity.unit\",\"valueQuantity.value\",\"valueString\",\"year\",\"month\",\"day\").toDF(*(\r\n",
+							"    \"observation_id\",\"resourceType\",\"issued\",\"status\",\"patient_id_reference\",\"encounter_id_reference\",\"effectiveDateTime\",\r\n",
+							"    \"valueQuantity_code\",\"valueQuantity_system\",\"valueQuantity_unit\",\"valueQuantity_value\",\"valueString\",\"year\",\"month\",\"day\"\r\n",
+							"    ))\r\n",
+							"\r\n",
+							"    dfFlatObsMain.write.format(\"delta\").mode(\"append\").partitionBy(\"year\", \"month\").save(silverPath + \"/Observation_main/\")\r\n",
+							"\r\n",
+							"#Observation Category\r\n",
+							"    dfFlatCategoryDf = df.select(\"observation_id\",\r\n",
+							"    explode(df.category),\"year\",\"month\",\"day\").toDF(*(\"observation_id\",\"category\",\"year\",\"month\",\"day\"))\r\n",
+							"\r\n",
+							"    dfFlatCategoryDf = dfFlatCategoryDf.select(\"observation_id\",\r\n",
+							"    explode(dfFlatCategoryDf.category.coding),\"year\",\"month\",\"day\").toDF(*(\"observation_id\",\"category\",\"year\",\"month\",\"day\"))    \r\n",
+							"\r\n",
+							"    dfFlatCategoryDf = dfFlatCategoryDf.select(\"observation_id\",\"category.*\",\"year\",\"month\",\"day\").toDF(*(\r\n",
+							"    \"observation_id\",\"category_code\",\"category_display\",\"category_system\",\"year\",\"month\",\"day\"))\r\n",
+							"\r\n",
+							"    dfFlatCategoryDf.write.format(\"delta\").mode(\"append\").partitionBy(\"year\", \"month\").save(silverPath + \"/Observation_category/\")\r\n",
+							"\r\n",
+							"#Observation Code\r\n",
+							"    dfFlatCodeDf = df.select(\"observation_id\",\"code.text\",explode(df.code.coding),\"year\",\"month\",\"day\").toDF(*(\"observation_id\",\"text\",\"coding\",\"year\",\"month\",\"day\"))\r\n",
+							"\r\n",
+							"    dfFlatCodeDf = dfFlatCodeDf.select(\"observation_id\",\"text\",\"coding.*\",\"year\",\"month\",\"day\").toDF(*(\r\n",
+							"    \"Observation_id\",\"code_text\",\"coding_code\",\"coding_display\",\"coding_system\",\"year\",\"month\",\"day\"))\r\n",
+							"\r\n",
+							"    dfFlatCodeDf.write.format(\"delta\").mode(\"append\").partitionBy(\"year\", \"month\").save(silverPath + \"/Observation_code/\")\r\n",
+							"\r\n",
+							"#Observation Component\r\n",
+							"    dfFlatComponentDf = df.select(\"Observation_id\",explode(df.component),\"year\",\"month\",\"day\")\r\n",
+							"\r\n",
+							"    dfFlatComponentDf = dfFlatComponentDf.select(\"observation_id\",explode_outer(dfFlatComponentDf.col.code.coding),\"col.code.text\",\r\n",
+							"    \"col.valueQuantity.code\",\"col.valueQuantity.system\",\"col.valueQuantity.unit\",\"col.valueQuantity.value\",\"year\",\"month\",\"day\").toDF(*(\"observation_id\",\"component_code\",\"component_text\",\r\n",
+							"    \"component_valueQuantity_code\",\"component_valueQuantity_system\",\"component_valueQuantity_unit\",\"component_valueQuantity_value\",\"year\",\"month\",\"day\"))   \r\n",
+							"\r\n",
+							"    dfFlatComponentDf = dfFlatComponentDf.select(\"observation_id\",\"component_code.*\",\"component_text\",\r\n",
+							"    \"component_valueQuantity_code\",\"component_valueQuantity_system\",\"component_valueQuantity_unit\",\"component_valueQuantity_value\",\"year\",\"month\",\"day\").toDF(*(\"observation_id\",\"component_code\",\r\n",
+							"    \"component_display\",\"component_system\",\"component_text\",\r\n",
+							"    \"component_valueQuantity_code\",\"component_valueQuantity_system\",\"component_valueQuantity_unit\",\"component_valueQuantity_value\",\"year\",\"month\",\"day\"))\r\n",
+							"\r\n",
+							"    dfFlatComponentDf.write.format(\"delta\").mode(\"append\").partitionBy(\"year\", \"month\").save(silverPath + \"/Observation_component/\")\r\n",
+							"\r\n",
+							"#Observation Value Codeable Concept\r\n",
+							"    dfFlatValueDf = df.select(\"observation_id\",explode(df.valueCodeableConcept.coding),\"valueCodeableConcept.text\",\"year\",\"month\",\"day\").toDF(*(\r\n",
+							"        \"observation_id\",\"coding\",\"valueCodeableConcept_text\",\"year\",\"month\",\"day\"))\r\n",
+							"\r\n",
+							"    dfFlatValueDf = dfFlatValueDf.select(\"observation_id\",\"coding.*\",\"valueCodeableConcept_text\",\"year\",\"month\",\"day\").toDF(*(\r\n",
+							"        \"observation_id\",\"valueCodeableConcept_code\", \"valueCodeableConcept_display\",\"valueCodeableConcept_system\",\"valueCodeableConcept_text\",\"year\",\"month\",\"day\"))\r\n",
+							"\r\n",
+							"    dfFlatValueDf.write.format(\"delta\").mode(\"append\").partitionBy(\"year\", \"month\").save(silverPath + \"/Observation_valueCodeableConcept/\")\r\n",
+							"\r\n",
+							"    startDate = startDate + datetime.timedelta(days=1)"
+						],
+						"outputs": [],
+						"execution_count": 7
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"## Incremental Load (Claim Tables) 2021"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"import datetime\r\n",
+							"\r\n",
+							"spark.conf.set(\"spark.microsoft.delta.optimizeWrite.enabled\", \"true\")\r\n",
+							"\r\n",
+							"startDate = datetime.datetime.strptime('2021-01-01', \"%Y-%m-%d\")\r\n",
+							"maxDate = datetime.datetime.strptime('2021-12-31', \"%Y-%m-%d\")\r\n",
+							"\r\n",
+							"bronzePath = \"abfss://bronze@\" + accountName + \".dfs.core.windows.net/incremental_data/\" + relativePath + \"/Claim/year=2021\"\r\n",
+							"silverPath = \"abfss://silver@\" + accountName + \".dfs.core.windows.net/\" + relativePath\r\n",
+							"\r\n",
+							"claimSchemaFile = bronzePath + \"/month=01/day=01\"\r\n",
+							"claimSchema = spark.read.option(\"mutiline\", \"true\").json(claimSchemaFile).schema\r\n",
+							"\r\n",
+							"while startDate <= maxDate:\r\n",
+							"    #endDate = startDate + datetime.timedelta(days=7)\r\n",
+							"    year = 2021\r\n",
+							"    month = startDate.strftime('%m')\r\n",
+							"    day = startDate.strftime('%d')\r\n",
+							"\r\n",
+							"    print(\"Processing: \" + month + \" \" + day)\r\n",
+							"\r\n",
+							"    df = spark.read.option(\"mutiline\", \"true\").schema(claimSchema).json(bronzePath + \"/month=\" + month)\r\n",
+							"    df = df.where(df.day == day)\r\n",
+							"    df = df.withColumn(\"year\", date_format(to_date(col(\"created\")), 'y'))\r\n",
+							"    df = df.withColumn(\"year\", df.year.cast('int'))\r\n",
+							"    df = df.withColumn(\"month\", date_format(to_date(col(\"created\")), 'MM'))\r\n",
+							"    df = df.withColumn(\"day\", date_format(to_date(col(\"created\")), 'dd'))\r\n",
+							"\r\n",
+							"    #Main\r\n",
+							"    claimMainDf = df.select(\r\n",
+							"        \"id\",\"resourceType\",\"status\",\"billablePeriod.end\",\"billablePeriod.start\",\"created\",\"patient.display\",\"patient.reference\",\r\n",
+							"        \"prescription.reference\",\"provider.display\",\"provider.reference\",\"total.currency\",\"total.value\",\"use\",\"year\",\"month\",\"day\")\r\n",
+							"\r\n",
+							"    claimMainDf = claimMainDf.toDF(*( \r\n",
+							"        \"claim_id\",\"resourceType\",\"status\",\"billablePeriod_end\",\"billablePeriod_start\",\"created\",\r\n",
+							"        \"patient_display\",\"patient_id_reference\",\r\n",
+							"        \"prescription_reference\",\"provider_display\",\"provider_org_id_reference\",\"total_currency\",\"total_value\",\"use\",\"year\",\"month\",\"day\"))\r\n",
+							"\r\n",
+							"    claimMainDf = claimMainDf.withColumn(\"patient_id_reference\",regexp_replace(\"patient_id_reference\",\"Patient/\",\"\")).withColumn(\r\n",
+							"        \"provider_org_id_reference\",regexp_replace(\"provider_org_id_reference\",\"Organization/\",\"\"))\r\n",
+							"\r\n",
+							"    claimMainDf.write.format(\"delta\").mode(\"append\").partitionBy(\"year\", \"month\").save(silverPath + \"/Claim_main/\")\r\n",
+							"\r\n",
+							"    #Insurance\r\n",
+							"    claimInsuranceDf = df.select(\"id\", explode(df.insurance),\"year\",\"month\",\"day\")\r\n",
+							"\r\n",
+							"    claimInsuranceDf = claimInsuranceDf.toDF(*(\"claim_id\",\"insurance\"),\"year\",\"month\",\"day\")\r\n",
+							"\r\n",
+							"    claimInsuranceDf = claimInsuranceDf.select(\r\n",
+							"        \"claim_id\",\"insurance.coverage.display\",\"insurance.focal\",\"insurance.sequence\",\"year\",\"month\",\"day\").toDF(*\r\n",
+							"        (\"claim_id\",\"insurance_coverage.display\",\"insurance_focal\",\"insurance_sequence\",\"year\",\"month\",\"day\"))\r\n",
+							"\r\n",
+							"    claimInsuranceDf.write.format(\"delta\").mode(\"append\").partitionBy(\"year\", \"month\").save(silverPath + \"/Claim_insurance/\")\r\n",
+							"\r\n",
+							"    #Diagnosis\r\n",
+							"    claimDiagnosisDf = df.select(\"id\", explode(df.diagnosis),\"year\",\"month\",\"day\")\r\n",
+							"\r\n",
+							"    claimDiagnosisDf = claimDiagnosisDf.toDF(*(\"id\", \"diagnosis\",\"year\",\"month\",\"day\"))\r\n",
+							"\r\n",
+							"    claimDiagnosisDf = claimDiagnosisDf.select(\"id\",\"diagnosis.diagnosisReference.reference\",\"diagnosis.sequence\",\"year\",\"month\",\"day\").toDF(*(  \r\n",
+							"        \"claim_id\",\"diagnosis_reference\",\"diagnosis_sequence\",\"year\",\"month\",\"day\"))\r\n",
+							"\r\n",
+							"    claimDiagnosisDf = claimDiagnosisDf.withColumn(\"diagnosis_reference\",regexp_replace(\"diagnosis_reference\",\"Condition/\",\"\"))\r\n",
+							"\r\n",
+							"    claimDiagnosisDf.write.format(\"delta\").mode(\"append\").partitionBy(\"year\", \"month\").save(silverPath + \"/Claim_diagnosis/\")\r\n",
+							"\r\n",
+							"    #Procedure\r\n",
+							"    claimProcedureDf = df.select(\"id\",explode(df.procedure),\"year\",\"month\",\"day\")\r\n",
+							"\r\n",
+							"    claimProcedureDf = claimProcedureDf.toDF(*(\"id\",\"procedure\"),\"year\",\"month\",\"day\")\r\n",
+							"\r\n",
+							"    claimProcedureDf = claimProcedureDf.select(\"id\",\"procedure.procedureReference.reference\",\"procedure.sequence\",\"year\",\"month\",\"day\").toDF(*(\r\n",
+							"        \"claim_id\",\"procedure_reference\",\"procedure_sequence\",\"year\",\"month\",\"day\"))\r\n",
+							"\r\n",
+							"    claimProcedureDf = claimProcedureDf.withColumn(\"procedure_reference\",regexp_replace(\"procedure_reference\",\"Procedure/\",\"\"))\r\n",
+							"\r\n",
+							"    claimProcedureDf.write.format(\"delta\").mode(\"append\").partitionBy(\"year\", \"month\").save(silverPath + \"/Claim_procedure/\")\r\n",
+							"\r\n",
+							"    startDate = startDate + datetime.timedelta(days=1)"
+						],
+						"outputs": [],
+						"execution_count": 2
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/nb-create-lake-db-tables')]",
+			"type": "Microsoft.Synapse/workspaces/notebooks",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"folder": {
+					"name": "FHIR"
 				},
 				"nbformat": 4,
 				"nbformat_minor": 2,
@@ -2261,7 +3562,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "3a0e38a9-a0d8-4c7e-9ccd-0dbbf64bbac8"
+						"spark.autotune.trackingId": "ff80131c-c09d-4c90-8f13-e02bdb566196"
 					}
 				},
 				"metadata": {
@@ -2286,15 +3587,390 @@
 						"sparkVersion": "3.2",
 						"nodeCount": 10,
 						"cores": 4,
-						"memory": 28,
-						"automaticScaleJobs": false
+						"memory": 28
 					},
 					"sessionKeepAliveTimeout": 30
 				},
 				"cells": [
 					{
 						"cell_type": "code",
-						"metadata": {},
+						"metadata": {
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"DROP DATABASE IF EXISTS fhirDB CASCADE;\r\n",
+							"CREATE DATABASE fhirDB;\r\n",
+							"CREATE SCHEMA bronze;\r\n",
+							"CREATE SCHEMA silver;"
+						],
+						"outputs": [],
+						"execution_count": 1
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							}
+						},
+						"source": [
+							"%%sql\r\n",
+							"USE silver"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"silverPath = \"abfss://silver@adlsfhirnonprod.dfs.core.windows.net/30tb/\"\r\n",
+							"\r\n",
+							"claimDiagnosisPath = silverPath + \"Claim_diagnosis/\"\r\n",
+							"spark.conf.set('claimDiagnosisPath',claimDiagnosisPath)\r\n",
+							"\r\n",
+							"claimInsurancePath = silverPath + \"Claim_insurance/\"\r\n",
+							"spark.conf.set('claimInsurancePath',claimInsurancePath)\r\n",
+							"\r\n",
+							"claimMainPath = silverPath + \"Claim_main/\"\r\n",
+							"spark.conf.set('claimMainPath',claimMainPath)\r\n",
+							"\r\n",
+							"claimProcedurePath = silverPath + \"Claim_procedure/\"\r\n",
+							"spark.conf.set('claimProcedurePath',claimProcedurePath)"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							}
+						},
+						"source": [
+							"%%sql\r\n",
+							"DROP TABLE IF EXISTS claimDiagnosis;\r\n",
+							"CREATE TABLE claimDiagnosis USING DELTA LOCATION '${claimDiagnosisPath}';\r\n",
+							"\r\n",
+							"DROP TABLE IF EXISTS claimInsurance;\r\n",
+							"CREATE TABLE claimInsurance USING DELTA LOCATION '${claimInsurancePath}';\r\n",
+							"\r\n",
+							"DROP TABLE IF EXISTS claimMain;\r\n",
+							"CREATE TABLE claimMain USING DELTA LOCATION '${claimMainPath}';\r\n",
+							"\r\n",
+							"DROP TABLE IF EXISTS claimProcedure;\r\n",
+							"CREATE TABLE claimProcedure USING DELTA LOCATION '${claimProcedurePath}';"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"silverPath = \"abfss://silver@adlsfhirnonprod.dfs.core.windows.net/30tb/\"\r\n",
+							"\r\n",
+							"observationCategoryPath = silverPath + \"Observation_category/\"\r\n",
+							"spark.conf.set('observationCategoryPath',observationCategoryPath)\r\n",
+							"\r\n",
+							"observationCodePath = silverPath + \"Observation_code/\"\r\n",
+							"spark.conf.set('observationCodePath',observationCodePath)\r\n",
+							"\r\n",
+							"observationComponentPath = silverPath + \"Observation_component/\"\r\n",
+							"spark.conf.set('observationComponentPath',observationComponentPath)\r\n",
+							"\r\n",
+							"observationMainPath = silverPath + \"Observation_main/\"\r\n",
+							"spark.conf.set('observationMainPath',observationMainPath)\r\n",
+							"\r\n",
+							"observationValueCodeableConceptPath = silverPath + \"Observation_valueCodeableConcept/\"\r\n",
+							"spark.conf.set('observationValueCodeableConceptPath',observationValueCodeableConceptPath)"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							}
+						},
+						"source": [
+							"%%sql\r\n",
+							"DROP TABLE IF EXISTS observationCategory;\r\n",
+							"CREATE TABLE observationCategory USING DELTA LOCATION '${observationCategoryPath}';\r\n",
+							"\r\n",
+							"DROP TABLE IF EXISTS observationCode;\r\n",
+							"CREATE TABLE observationCode USING DELTA LOCATION '${observationCodePath}';\r\n",
+							"\r\n",
+							"DROP TABLE IF EXISTS observationComponent;\r\n",
+							"CREATE TABLE observationComponent USING DELTA LOCATION '${observationComponentPath}';\r\n",
+							"\r\n",
+							"DROP TABLE IF EXISTS observationMain;\r\n",
+							"CREATE TABLE observationMain USING DELTA LOCATION '${observationMainPath}';\r\n",
+							"\r\n",
+							"DROP TABLE IF EXISTS observationValueCodeableConcept;\r\n",
+							"CREATE TABLE observationValueCodeableConcept USING DELTA LOCATION '${observationValueCodeableConceptPath}';"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"silverPath = \"abfss://silver@adlsfhirnonprod.dfs.core.windows.net/30tb/\"\r\n",
+							"\r\n",
+							"patientAddressPath = silverPath + \"Patient_address/\"\r\n",
+							"spark.conf.set('patientAddressPath',patientAddressPath)\r\n",
+							"\r\n",
+							"patientExtensionPath = silverPath + \"Patient_extension/\"\r\n",
+							"spark.conf.set('patientExtensionPath',patientExtensionPath)\r\n",
+							"\r\n",
+							"patientIdentifierPath = silverPath + \"Patient_identifier/\"\r\n",
+							"spark.conf.set('patientIdentifierPath',patientIdentifierPath)"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							}
+						},
+						"source": [
+							"%%sql\r\n",
+							"DROP TABLE IF EXISTS patientAddress;\r\n",
+							"CREATE TABLE patientAddress USING DELTA LOCATION '${patientAddressPath}';\r\n",
+							"\r\n",
+							"DROP TABLE IF EXISTS patientExtension;\r\n",
+							"CREATE TABLE patientExtension USING DELTA LOCATION '${patientExtensionPath}';\r\n",
+							"\r\n",
+							"DROP TABLE IF EXISTS patientIdentifier;\r\n",
+							"CREATE TABLE patientIdentifier USING DELTA LOCATION '${patientIdentifierPath}';"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"\r\n",
+							"select * from silver.claiminsurance where year = 2020 and month = 01"
+						],
+						"outputs": [],
+						"execution_count": 1
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"silverPath = \"abfss://silver@adlsfhirnonprod.dfs.core.windows.net/30tb/\"\r\n",
+							"\r\n",
+							"patientAddressPath = silverPath + \"Patient_address/\"\r\n",
+							"spark.conf.set('patientAddressPath',patientAddressPath)\r\n",
+							"\r\n",
+							"patientExtensionPath = silverPath + \"Patient_extension/\"\r\n",
+							"spark.conf.set('patientExtensionPath',patientExtensionPath)\r\n",
+							"\r\n",
+							"patientIdentifierPath = silverPath + \"Patient_identifier/\"\r\n",
+							"spark.conf.set('patientIdentifierPath',patientIdentifierPath)"
+						],
+						"outputs": [],
+						"execution_count": 1
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"select \r\n",
+							"p.patient_id, count(*) as count_claims\r\n",
+							"from \r\n",
+							"silver.claimmain c \r\n",
+							"left join silver.patientidentifier p \r\n",
+							"on c.patient_id_reference = p.patient_id\r\n",
+							"\r\n",
+							"where c.year in (2020, 2021) \r\n",
+							"and p.gender = 'male' \r\n",
+							"and year(current_date) - year(p.birthDate) between 18 and 25\r\n",
+							"group by p.patient_id;"
+						],
+						"outputs": [],
+						"execution_count": 14
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/nb-openai-utilities')]",
+			"type": "Microsoft.Synapse/workspaces/notebooks",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"folder": {
+					"name": "Projects"
+				},
+				"nbformat": 4,
+				"nbformat_minor": 2,
+				"bigDataPool": {
+					"referenceName": "sparknonprod",
+					"type": "BigDataPoolReference"
+				},
+				"sessionProperties": {
+					"driverMemory": "28g",
+					"driverCores": 4,
+					"executorMemory": "28g",
+					"executorCores": 4,
+					"numExecutors": 2,
+					"runAsWorkspaceSystemIdentity": false,
+					"conf": {
+						"spark.dynamicAllocation.enabled": "false",
+						"spark.dynamicAllocation.minExecutors": "2",
+						"spark.dynamicAllocation.maxExecutors": "2",
+						"spark.autotune.trackingId": "3a0e38a9-a0d8-4c7e-9ccd-0dbbf64bbac8"
+					}
+				},
+				"metadata": {
+					"saveOutput": true,
+					"enableDebugMode": false,
+					"language_info": {
+						"name": "python"
+					},
+					"a365ComputeOptions": {
+						"id": "/subscriptions/b3d87898-3bc9-4864-ba33-06c31dea9d94/resourceGroups/rg-cdw-nonprod/providers/Microsoft.Synapse/workspaces/wkspc-cdw-nonprod/bigDataPools/sparknonprod",
+						"name": "sparknonprod",
+						"type": "Spark",
+						"endpoint": "https://wkspc-cdw-nonprod.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/sparknonprod",
+						"auth": {
+							"type": "AAD",
+							"authResource": "https://dev.azuresynapse.net",
+							"authHeader": null
+						},
+						"sparkVersion": "3.2",
+						"nodeCount": 10,
+						"cores": 4,
+						"memory": 28,
+						"extraHeader": null
+					},
+					"sessionKeepAliveTimeout": 30
+				},
+				"cells": [
+					{
+						"cell_type": "code",
 						"source": [
 							"import os\r\n",
 							"import requests\r\n",
@@ -2371,25 +4047,849 @@
 							"text = response['choices'][0]['text'].replace('\\n', '').replace(' .', '.').strip()\r\n",
 							"print(start_phrase+text)"
 						],
-						"outputs": [],
-						"execution_count": null
+						"outputs": []
 					}
 				]
 			},
 			"dependsOn": []
 		},
 		{
-			"name": "[concat(parameters('workspaceName'), '/lsadkvdenonprod')]",
-			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"name": "[concat(parameters('workspaceName'), '/nb-raw-to-bronze')]",
+			"type": "Microsoft.Synapse/workspaces/notebooks",
 			"apiVersion": "2019-06-01-preview",
 			"properties": {
-				"annotations": [],
-				"type": "AzureKeyVault",
-				"typeProperties": {
-					"baseUrl": "[parameters('lsadkvdenonprod_properties_typeProperties_baseUrl')]"
-				}
+				"folder": {
+					"name": "FHIR"
+				},
+				"nbformat": 4,
+				"nbformat_minor": 2,
+				"bigDataPool": {
+					"referenceName": "sparknonprodlg",
+					"type": "BigDataPoolReference"
+				},
+				"sessionProperties": {
+					"driverMemory": "112g",
+					"driverCores": 16,
+					"executorMemory": "112g",
+					"executorCores": 16,
+					"numExecutors": 2,
+					"conf": {
+						"spark.dynamicAllocation.enabled": "true",
+						"spark.dynamicAllocation.minExecutors": "2",
+						"spark.dynamicAllocation.maxExecutors": "6",
+						"spark.autotune.trackingId": "b41d1550-4772-4dad-9ddb-c0c1e6708d6d"
+					}
+				},
+				"metadata": {
+					"saveOutput": true,
+					"enableDebugMode": false,
+					"kernelspec": {
+						"name": "synapse_pyspark",
+						"display_name": "Synapse PySpark"
+					},
+					"language_info": {
+						"name": "python"
+					},
+					"a365ComputeOptions": {
+						"id": "/subscriptions/b3d87898-3bc9-4864-ba33-06c31dea9d94/resourceGroups/rg-cdw-nonprod/providers/Microsoft.Synapse/workspaces/wkspc-cdw-nonprod/bigDataPools/sparknonprodlg",
+						"name": "sparknonprodlg",
+						"type": "Spark",
+						"endpoint": "https://wkspc-cdw-nonprod.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/sparknonprodlg",
+						"auth": {
+							"type": "AAD",
+							"authResource": "https://dev.azuresynapse.net"
+						},
+						"sparkVersion": "3.3",
+						"nodeCount": 10,
+						"cores": 16,
+						"memory": 112
+					},
+					"sessionKeepAliveTimeout": 30
+				},
+				"cells": [
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"## **Historical Observation Ingestion** (2016-2020)"
+						]
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"import pyspark.sql.functions import col, regexp_replace, explode, date_format, to_date, year\r\n",
+							"from notebookutils import mssparkutils\r\n",
+							"from pyspark.sql import SparkSession\r\n",
+							"from pyspark.sql.types import StructType, StructField, StringType, IntegerType\r\n",
+							"\r\n",
+							"accountName = 'adlsfhirnonprod'\r\n",
+							"containerName = 'raw'\r\n",
+							"relativePath = '30tb'\r\n",
+							"linkedService = 'lsadlsfhirnonprod'\r\n",
+							"\r\n",
+							"sasToken = mssparkutils.credentials.getConnectionStringOrCreds(linkedService)\r\n",
+							"\r\n",
+							"wasbPath = 'wasbs://%s@%s.blob.core.windows.net/%s' % (containerName, accountName, relativePath)\r\n",
+							"spark.conf.set('fs.azure.sas.%s.%s.blob.core.windows.net' % (containerName, accountName), sasToken)\r\n",
+							"\r\n",
+							"bronzePath = \"abfss://bronze@\" + blob_account_name + \".dfs.core.windows.net/historic_data/\" + relativePath + \"/Observation/\"\r\n",
+							"\r\n",
+							"observationSchemaFile = wasbPath + \"/000047ca-00c7-492b-bf65-740805144cd2/Observation.ndjson\"\r\n",
+							"observationSchema = spark.read.option(\"mutiline\", \"true\").json(observationSchemaFile).schema\r\n",
+							"\r\n",
+							"df = spark.read.option(\"mutiline\", \"true\").schema(observationSchema).json(wasbPath + \"/*/Observation.ndjson\")\r\n",
+							"df = df.withColumn(\"year\", year(to_date(col(\"issued\"))))\r\n",
+							"\r\n",
+							"df = df.filter(col(\"year\") >= 2016)\r\n",
+							"df = df.filter(col(\"year\") <= 2020)\r\n",
+							"\r\n",
+							"df.write.mode(\"overwrite\").partitionBy(\"year\").json(bronzePath)"
+						],
+						"outputs": [],
+						"execution_count": 3
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"## **Historical Claim Ingestion** (2016-2020)"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"bronzePath = \"abfss://bronze@\" + accountName + \".dfs.core.windows.net/historic_data/\" + relativePath + \"/Claim/\"\r\n",
+							"\r\n",
+							"claimSchemaFile = wasbPath + \"/000047ca-00c7-492b-bf65-740805144cd2/Claim.ndjson\"\r\n",
+							"claimSchema = spark.read.option(\"mutiline\", \"true\").json(claimSchemaFile).schema\r\n",
+							"\r\n",
+							"df = spark.read.option(\"mutiline\", \"true\").schema(claimSchema).json(wasbPath + \"/*/Claim.ndjson\")\r\n",
+							"df = df.withColumn(\"year\", year(to_date(col(\"created\"))))\r\n",
+							"\r\n",
+							"df = df.filter(col(\"year\") >= 2016)\r\n",
+							"df = df.filter(col(\"year\") <= 2020)\r\n",
+							"\r\n",
+							"df.write.mode(\"overwrite\").partitionBy(\"year\").json(bronzePath)"
+						],
+						"outputs": [],
+						"execution_count": 4
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"## **Incremental Observation Ingestion** (2021)"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"bronzePath = \"abfss://bronze@\" + accountName + \".dfs.core.windows.net/incremental_data/\" + relativePath + \"/Observation/\"\r\n",
+							"\r\n",
+							"observationSchemaFile = wasbPath + \"/000047ca-00c7-492b-bf65-740805144cd2/Observation.ndjson\"\r\n",
+							"observationSchema = spark.read.option(\"mutiline\", \"true\").json(observationSchemaFile).schema\r\n",
+							"\r\n",
+							"df = spark.read.option(\"mutiline\", \"true\").schema(observationSchema).json(wasbPath + \"/*/Observation.ndjson\");\r\n",
+							"df = df.withColumn(\"year\", year(to_date(col(\"issued\"))))\r\n",
+							"df = df.withColumn(\"month\", date_format(to_date(col(\"issued\")), 'MM'))\r\n",
+							"df = df.withColumn(\"day\", date_format(to_date(col(\"issued\")), 'dd'))\r\n",
+							"\r\n",
+							"df = df.filter(col(\"year\") == 2021)\r\n",
+							"df = df.repartition(\"year\", \"month\")\r\n",
+							"\r\n",
+							"df.write.mode(\"overwrite\").partitionBy(\"year\", \"month\", \"day\").json(bronzePath)"
+						],
+						"outputs": [],
+						"execution_count": 5
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"## **Incremental Claim Ingestion** (2021)"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"bronzePath = \"abfss://bronze@\" + accountName + \".dfs.core.windows.net/incremental_data/\" + relativePath + \"/Claim/\"\r\n",
+							"\r\n",
+							"claimSchemaFile = wasbPath + \"/000047ca-00c7-492b-bf65-740805144cd2/Claim.ndjson\"\r\n",
+							"claimSchema = spark.read.option(\"mutiline\", \"true\").json(claimSchemaFile).schema\r\n",
+							"\r\n",
+							"df = spark.read.option(\"mutiline\", \"true\").schema(claimSchema).json(wasbPath + \"/*/Claim.ndjson\");\r\n",
+							"df = df.withColumn(\"year\", year(to_date(col(\"created\"))))\r\n",
+							"df = df.withColumn(\"month\", date_format(to_date(col(\"created\")), 'MM'))\r\n",
+							"df = df.withColumn(\"day\", date_format(to_date(col(\"created\")), 'dd'))\r\n",
+							"\r\n",
+							"df = df.filter(col(\"year\") == 2021)\r\n",
+							"df = df.repartition(\"year\", \"month\")\r\n",
+							"\r\n",
+							"df.write.mode(\"overwrite\").partitionBy(\"year\", \"month\", \"day\").json(bronzePath)"
+						],
+						"outputs": [],
+						"execution_count": 6
+					}
+				]
 			},
 			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/nb-silver-to-sql-dimensions')]",
+			"type": "Microsoft.Synapse/workspaces/notebooks",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"folder": {
+					"name": "FHIR"
+				},
+				"nbformat": 4,
+				"nbformat_minor": 2,
+				"bigDataPool": {
+					"referenceName": "sparknonprod31",
+					"type": "BigDataPoolReference"
+				},
+				"sessionProperties": {
+					"driverMemory": "112g",
+					"driverCores": 16,
+					"executorMemory": "112g",
+					"executorCores": 16,
+					"numExecutors": 2,
+					"conf": {
+						"spark.dynamicAllocation.enabled": "true",
+						"spark.dynamicAllocation.minExecutors": "2",
+						"spark.dynamicAllocation.maxExecutors": "6",
+						"spark.autotune.trackingId": "1732e5e7-6f28-4d39-b73c-596fec63e93e"
+					}
+				},
+				"metadata": {
+					"saveOutput": true,
+					"enableDebugMode": false,
+					"kernelspec": {
+						"name": "synapse_pyspark",
+						"display_name": "Synapse PySpark"
+					},
+					"language_info": {
+						"name": "python"
+					},
+					"a365ComputeOptions": {
+						"id": "/subscriptions/b3d87898-3bc9-4864-ba33-06c31dea9d94/resourceGroups/rg-cdw-nonprod/providers/Microsoft.Synapse/workspaces/wkspc-cdw-nonprod/bigDataPools/sparknonprod31",
+						"name": "sparknonprod31",
+						"type": "Spark",
+						"endpoint": "https://wkspc-cdw-nonprod.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/sparknonprod31",
+						"auth": {
+							"type": "AAD",
+							"authResource": "https://dev.azuresynapse.net"
+						},
+						"sparkVersion": "3.1",
+						"nodeCount": 10,
+						"cores": 16,
+						"memory": 112
+					},
+					"sessionKeepAliveTimeout": 30
+				},
+				"cells": [
+					{
+						"cell_type": "code",
+						"source": [
+							"import com.microsoft.spark.sqlanalytics\r\n",
+							"from com.microsoft.spark.sqlanalytics.Constants import Constants\r\n",
+							"from pyspark.sql import SparkSession\r\n",
+							"\r\n",
+							"accountName = 'adlsfhirnonprod'\r\n",
+							"containerName = 'silver'\r\n",
+							"relativePath = '30tb'\r\n",
+							"\r\n",
+							"silverPath = \"abfss://silver@\" + accountName + \".dfs.core.windows.net/\" + relativePath"
+						],
+						"outputs": [],
+						"execution_count": 5
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"obsCategoryDf = spark.read.format(\"delta\").load(silverPath + \"/Observation_category\")\r\n",
+							"obsComponentDf = spark.read.format(\"delta\").load(silverPath + \"/Observation_component\")\r\n",
+							"obsCodeDf = spark.read.format(\"delta\").load(silverPath + \"/Observation_code\")\r\n",
+							"patientIdDf = spark.read.format(\"delta\").load(silverPath + \"/Patient_identifier\")\r\n",
+							"patientAddressDf = spark.read.format(\"delta\").load(silverPath + \"/Patient_address\")\r\n",
+							"claimInsuranceDf = spark.read.format(\"delta\").load(silverPath + \"/Claim_insurance\")\r\n",
+							"claimDiagnosisDf = spark.read.format(\"delta\").load(silverPath + \"/Claim_diagnosis\")\r\n",
+							"claimProcedureDf = spark.read.format(\"delta\").load(silverPath + \"/Claim_procedure\")"
+						],
+						"outputs": [],
+						"execution_count": 9
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"claimInsuranceDf = claimInsuranceDf.withColumnRenamed(\"insurance_coverage.display\", \"insurance_coverage_display\")\r\n",
+							"obsComponentDf = obsComponentDf.withColumnRenamed(\"Observation_id\", \"observation_id\")\r\n",
+							"obsCodeDf = obsCodeDf.withColumnRenamed(\"Observation_id\", \"observation_id\")"
+						],
+						"outputs": [],
+						"execution_count": 12
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"(obsCategoryDf.write\r\n",
+							" .option(Constants.SERVER, \"wkspc-cdw-nonprod.sql.azuresynapse.net\")\r\n",
+							" .option(Constants.TEMP_FOLDER, \"abfss://silver@adlsfhirnonprod.dfs.core.windows.net/sqlStaging\")\r\n",
+							" .mode(\"overwrite\")\r\n",
+							" .synapsesql(\"dsqlnonprod.fhir.observationCategory\"))\r\n",
+							"\r\n",
+							"(obsComponentDf.write\r\n",
+							" .option(Constants.SERVER, \"wkspc-cdw-nonprod.sql.azuresynapse.net\")\r\n",
+							" .option(Constants.TEMP_FOLDER, \"abfss://silver@adlsfhirnonprod.dfs.core.windows.net/sqlStaging\")\r\n",
+							" .mode(\"overwrite\")\r\n",
+							" .synapsesql(\"dsqlnonprod.fhir.observationComponent\"))\r\n",
+							"\r\n",
+							"(obsCodeDf.write\r\n",
+							" .option(Constants.SERVER, \"wkspc-cdw-nonprod.sql.azuresynapse.net\")\r\n",
+							" .option(Constants.TEMP_FOLDER, \"abfss://silver@adlsfhirnonprod.dfs.core.windows.net/sqlStaging\")\r\n",
+							" .mode(\"overwrite\")\r\n",
+							" .synapsesql(\"dsqlnonprod.fhir.observationCode\"))\r\n",
+							"\r\n",
+							"(patientIdDf.write\r\n",
+							" .option(Constants.SERVER, \"wkspc-cdw-nonprod.sql.azuresynapse.net\")\r\n",
+							" .option(Constants.TEMP_FOLDER, \"abfss://silver@adlsfhirnonprod.dfs.core.windows.net/sqlStaging\")\r\n",
+							" .mode(\"overwrite\")\r\n",
+							" .synapsesql(\"dsqlnonprod.fhir.patientIdentifier\"))\r\n",
+							"\r\n",
+							"(patientAddressDf.write\r\n",
+							" .option(Constants.SERVER, \"wkspc-cdw-nonprod.sql.azuresynapse.net\")\r\n",
+							" .option(Constants.TEMP_FOLDER, \"abfss://silver@adlsfhirnonprod.dfs.core.windows.net/sqlStaging\")\r\n",
+							" .mode(\"overwrite\")\r\n",
+							" .synapsesql(\"dsqlnonprod.fhir.patientAddress\"))\r\n",
+							"\r\n",
+							"(claimInsuranceDf.write\r\n",
+							" .option(Constants.SERVER, \"wkspc-cdw-nonprod.sql.azuresynapse.net\")\r\n",
+							" .option(Constants.TEMP_FOLDER, \"abfss://silver@adlsfhirnonprod.dfs.core.windows.net/sqlStaging\")\r\n",
+							" .mode(\"overwrite\")\r\n",
+							" .synapsesql(\"dsqlnonprod.fhir.claimInsurance\"))\r\n",
+							"\r\n",
+							"(claimDiagnosisDf.write\r\n",
+							" .option(Constants.SERVER, \"wkspc-cdw-nonprod.sql.azuresynapse.net\")\r\n",
+							" .option(Constants.TEMP_FOLDER, \"abfss://silver@adlsfhirnonprod.dfs.core.windows.net/sqlStaging\")\r\n",
+							" .mode(\"overwrite\")\r\n",
+							" .synapsesql(\"dsqlnonprod.fhir.claimDiagnosis\"))\r\n",
+							"\r\n",
+							"(claimProcedureDf.write\r\n",
+							" .option(Constants.SERVER, \"wkspc-cdw-nonprod.sql.azuresynapse.net\")\r\n",
+							" .option(Constants.TEMP_FOLDER, \"abfss://silver@adlsfhirnonprod.dfs.core.windows.net/sqlStaging\")\r\n",
+							" .mode(\"overwrite\")\r\n",
+							" .synapsesql(\"dsqlnonprod.fhir.claimProcedure\"))"
+						],
+						"outputs": [],
+						"execution_count": 18
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/nb-silver-to-sql-facts')]",
+			"type": "Microsoft.Synapse/workspaces/notebooks",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"folder": {
+					"name": "FHIR"
+				},
+				"nbformat": 4,
+				"nbformat_minor": 2,
+				"bigDataPool": {
+					"referenceName": "sparknonprod31",
+					"type": "BigDataPoolReference"
+				},
+				"sessionProperties": {
+					"driverMemory": "112g",
+					"driverCores": 16,
+					"executorMemory": "112g",
+					"executorCores": 16,
+					"numExecutors": 2,
+					"conf": {
+						"spark.dynamicAllocation.enabled": "true",
+						"spark.dynamicAllocation.minExecutors": "2",
+						"spark.dynamicAllocation.maxExecutors": "6",
+						"spark.autotune.trackingId": "fedf8c82-1cbb-48ab-bb51-4630a1f7b355"
+					}
+				},
+				"metadata": {
+					"saveOutput": true,
+					"enableDebugMode": false,
+					"kernelspec": {
+						"name": "synapse_pyspark",
+						"display_name": "Synapse PySpark"
+					},
+					"language_info": {
+						"name": "python"
+					},
+					"a365ComputeOptions": {
+						"id": "/subscriptions/b3d87898-3bc9-4864-ba33-06c31dea9d94/resourceGroups/rg-cdw-nonprod/providers/Microsoft.Synapse/workspaces/wkspc-cdw-nonprod/bigDataPools/sparknonprod31",
+						"name": "sparknonprod31",
+						"type": "Spark",
+						"endpoint": "https://wkspc-cdw-nonprod.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/sparknonprod31",
+						"auth": {
+							"type": "AAD",
+							"authResource": "https://dev.azuresynapse.net"
+						},
+						"sparkVersion": "3.1",
+						"nodeCount": 10,
+						"cores": 16,
+						"memory": 112
+					},
+					"sessionKeepAliveTimeout": 30
+				},
+				"cells": [
+					{
+						"cell_type": "code",
+						"source": [
+							"import com.microsoft.spark.sqlanalytics\r\n",
+							"from com.microsoft.spark.sqlanalytics.Constants import Constants\r\n",
+							"from pyspark.sql import SparkSession\r\n",
+							"from pyspark.sql.functions import col, regexp_replace, explode, explode_outer, date_format, to_date, year, to_timestamp\r\n",
+							"\r\n",
+							"accountName = 'adlsfhirnonprod'\r\n",
+							"containerName = 'bronze'\r\n",
+							"relativePath = '30tb'\r\n",
+							"\r\n",
+							"#years = [2016,2017,2018,2019,2021]\r\n",
+							"years= [2021]\r\n",
+							"months = ['01','02','03','04','05','06','07','08','09','10','11']\r\n",
+							"\r\n",
+							"silverPath = \"abfss://silver@\" + accountName + \".dfs.core.windows.net/\" + relativePath"
+						],
+						"outputs": [],
+						"execution_count": 6
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"obsMainDf = spark.read.format(\"delta\").load(silverPath + \"/Observation_main\")\r\n",
+							"claimMainDf = spark.read.format(\"delta\").load(silverPath + \"/Claim_main\")\r\n",
+							"\r\n",
+							"obsMainDf = obsMainDf.filter(col(\"year\").isin(years))\r\n",
+							"claimMainDf = claimMainDf.filter(col(\"year\").isin(years))\r\n",
+							"obsMainDf = obsMainDf.filter(col(\"month\").isin(months))\r\n",
+							"claimMainDf = claimMainDf.filter(col(\"month\").isin(months))"
+						],
+						"outputs": [],
+						"execution_count": 7
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"claimMainDf = claimMainDf.withColumnRenamed(\"use\", \"isuse\")"
+						],
+						"outputs": [],
+						"execution_count": 17
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"## Historical Load (Claim, Observation Facts)"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"(obsMainDf.write\r\n",
+							" .option(Constants.SERVER, \"wkspc-cdw-nonprod.sql.azuresynapse.net\")\r\n",
+							" .option(Constants.TEMP_FOLDER, \"abfss://silver@adlsfhirnonprod.dfs.core.windows.net/sqlStaging\")\r\n",
+							" .mode(\"append\")\r\n",
+							" .synapsesql(\"dsqlnonprod.fhir.observationMain\"))\r\n",
+							"\r\n",
+							"(claimMainDf.write\r\n",
+							" .option(Constants.SERVER, \"wkspc-cdw-nonprod.sql.azuresynapse.net\")\r\n",
+							" .option(Constants.TEMP_FOLDER, \"abfss://silver@adlsfhirnonprod.dfs.core.windows.net/sqlStaging\")\r\n",
+							" .mode(\"append\")\r\n",
+							" .synapsesql(\"dsqlnonprod.fhir.claimMain\"))"
+						],
+						"outputs": [],
+						"execution_count": 12
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"## Incremental Load (Claim, Observation Main Facts)"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"import datetime\r\n",
+							"\r\n",
+							"startDate = datetime.datetime.strptime('2021-12-01', \"%Y-%m-%d\")\r\n",
+							"maxDate = datetime.datetime.strptime('2021-12-31', \"%Y-%m-%d\")\r\n",
+							"relativePath = '30tb'\r\n",
+							"\r\n",
+							"obsPath = \"abfss://silver@\" + accountName + \".dfs.core.windows.net/\" + relativePath + \"/Observation_main/year=2021\"\r\n",
+							"claimPath = \"abfss://silver@\" + accountName + \".dfs.core.windows.net/\" + relativePath + \"/Claim_main/year=2021\"\r\n",
+							"\r\n",
+							"while startDate <= maxDate:\r\n",
+							"    #endDate = startDate + datetime.timedelta(days=7)\r\n",
+							"    year = 2021\r\n",
+							"    month = startDate.strftime('%m')\r\n",
+							"    day = startDate.strftime('%d')\r\n",
+							"\r\n",
+							"    print(\"Processing: \" + month + \" \" + day)\r\n",
+							"\r\n",
+							"    obsMainDf = spark.read.format(\"delta\").load(obsPath + \"/month=\" + month)\r\n",
+							"    claimMainDf = spark.read.format(\"delta\").load(claimPath + \"/month=\" + month)\r\n",
+							"\r\n",
+							"    obsMainDf = obsMainDf.where(obsMainDf.day == day)\r\n",
+							"    claimMainDf = claimMainDf.where(claimMainDf.day == day)\r\n",
+							"\r\n",
+							"    claimMainDf = claimMainDf.withColumnRenamed(\"use\", \"isuse\")\r\n",
+							"\r\n",
+							"    (obsMainDf.write\r\n",
+							"     .option(Constants.SERVER, \"wkspc-cdw-nonprod.sql.azuresynapse.net\")\r\n",
+							"     .option(Constants.TEMP_FOLDER, \"abfss://silver@adlsfhirnonprod.dfs.core.windows.net/sqlStaging\")\r\n",
+							"     .mode(\"append\")\r\n",
+							"     .synapsesql(\"dsqlnonprod.fhir.observationMain\"))\r\n",
+							"\r\n",
+							"    (claimMainDf.write\r\n",
+							"     .option(Constants.SERVER, \"wkspc-cdw-nonprod.sql.azuresynapse.net\")\r\n",
+							"     .option(Constants.TEMP_FOLDER, \"abfss://silver@adlsfhirnonprod.dfs.core.windows.net/sqlStaging\")\r\n",
+							"     .mode(\"append\")\r\n",
+							"     .synapsesql(\"dsqlnonprod.fhir.claimMain\"))\r\n",
+							"    \r\n",
+							"    startDate = startDate + datetime.timedelta(days=1)"
+						],
+						"outputs": [],
+						"execution_count": 18
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/sparknonprod')]",
+			"type": "Microsoft.Synapse/workspaces/bigDataPools",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"autoPause": {
+					"enabled": true,
+					"delayInMinutes": 15
+				},
+				"autoScale": {
+					"enabled": true,
+					"maxNodeCount": 10,
+					"minNodeCount": 3
+				},
+				"nodeCount": 10,
+				"nodeSize": "Small",
+				"nodeSizeFamily": "MemoryOptimized",
+				"sparkVersion": "3.2",
+				"libraryRequirements": {
+					"content": "openai",
+					"filename": "requirements.txt",
+					"time": "2023-06-29T15:13:57.9369399Z"
+				},
+				"isComputeIsolationEnabled": false,
+				"sessionLevelPackagesEnabled": true,
+				"annotations": []
+			},
+			"dependsOn": [],
+			"location": "eastus"
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/sparknonprodlg')]",
+			"type": "Microsoft.Synapse/workspaces/bigDataPools",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"autoPause": {
+					"enabled": true,
+					"delayInMinutes": 15
+				},
+				"autoScale": {
+					"enabled": true,
+					"maxNodeCount": 10,
+					"minNodeCount": 3
+				},
+				"nodeCount": 10,
+				"nodeSize": "Large",
+				"nodeSizeFamily": "MemoryOptimized",
+				"sparkVersion": "3.3",
+				"isComputeIsolationEnabled": false,
+				"sessionLevelPackagesEnabled": false,
+				"annotations": []
+			},
+			"dependsOn": [],
+			"location": "eastus"
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/sparknonprodmd')]",
+			"type": "Microsoft.Synapse/workspaces/bigDataPools",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"autoPause": {
+					"enabled": true,
+					"delayInMinutes": 15
+				},
+				"autoScale": {
+					"enabled": true,
+					"maxNodeCount": 10,
+					"minNodeCount": 3
+				},
+				"nodeCount": 10,
+				"nodeSize": "Medium",
+				"nodeSizeFamily": "MemoryOptimized",
+				"sparkVersion": "3.3",
+				"isComputeIsolationEnabled": false,
+				"sessionLevelPackagesEnabled": false,
+				"annotations": []
+			},
+			"dependsOn": [],
+			"location": "eastus"
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/sparknonprod31')]",
+			"type": "Microsoft.Synapse/workspaces/bigDataPools",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"autoPause": {
+					"enabled": true,
+					"delayInMinutes": 15
+				},
+				"autoScale": {
+					"enabled": true,
+					"maxNodeCount": 8,
+					"minNodeCount": 3
+				},
+				"nodeCount": 10,
+				"nodeSize": "Large",
+				"nodeSizeFamily": "MemoryOptimized",
+				"sparkVersion": "3.1",
+				"isComputeIsolationEnabled": false,
+				"sessionLevelPackagesEnabled": true,
+				"annotations": []
+			},
+			"dependsOn": [],
+			"location": "eastus"
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/dsqlnonprod')]",
+			"type": "Microsoft.Synapse/workspaces/sqlPools",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"collation": "Latin1_General_100_BIN2_UTF8",
+				"maxSizeBytes": 263882790666240,
+				"annotations": []
+			},
+			"dependsOn": [],
+			"location": "eastus"
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/default/synapse-ws-custstgacct--wkspc-cdw-nonprod-adlscdwnonprod')]",
+			"type": "Microsoft.Synapse/workspaces/managedVirtualNetworks/managedPrivateEndpoints",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"privateLinkResourceId": "/subscriptions/b3d87898-3bc9-4864-ba33-06c31dea9d94/resourceGroups/rg-cdw-nonprod/providers/Microsoft.Storage/storageAccounts/adlscdwnonprod",
+				"groupId": "dfs",
+				"fqdns": [
+					"adlscdwnonprod.dfs.core.windows.net"
+				]
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/managedVirtualNetworks/default')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/default/synapse-ws-kusto-2af2118c98-v2')]",
+			"type": "Microsoft.Synapse/workspaces/managedVirtualNetworks/managedPrivateEndpoints",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"privateLinkResourceId": "/subscriptions/b3d87898-3bc9-4864-ba33-06c31dea9d94/resourceGroups/rg-cdw-nonprod/providers/Microsoft.Synapse/workspaces/wkspc-cdw-nonprod",
+				"groupId": "Kusto",
+				"fqdns": [
+					"dataexplorernonprod.wkspc-cdw-nonprod.kusto.azuresynapse.net"
+				]
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/managedVirtualNetworks/default')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/default/synapse-ws-sql--wkspc-cdw-nonprod')]",
+			"type": "Microsoft.Synapse/workspaces/managedVirtualNetworks/managedPrivateEndpoints",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"privateLinkResourceId": "/subscriptions/b3d87898-3bc9-4864-ba33-06c31dea9d94/resourceGroups/rg-cdw-nonprod/providers/Microsoft.Synapse/workspaces/wkspc-cdw-nonprod",
+				"groupId": "sql",
+				"fqdns": [
+					"wkspc-cdw-nonprod.2af2118c-98ca-4d3f-b69d-36ee18bacf90.sql.azuresynapse.net"
+				]
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/managedVirtualNetworks/default')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/default/synapse-ws-sqlOnDemand--wkspc-cdw-nonprod')]",
+			"type": "Microsoft.Synapse/workspaces/managedVirtualNetworks/managedPrivateEndpoints",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"privateLinkResourceId": "/subscriptions/b3d87898-3bc9-4864-ba33-06c31dea9d94/resourceGroups/rg-cdw-nonprod/providers/Microsoft.Synapse/workspaces/wkspc-cdw-nonprod",
+				"groupId": "sqlOnDemand",
+				"fqdns": [
+					"wkspc-cdw-nonprod-ondemand.2af2118c-98ca-4d3f-b69d-36ee18bacf90.sql.azuresynapse.net"
+				]
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/managedVirtualNetworks/default')]"
+			]
 		}
 	]
 }
